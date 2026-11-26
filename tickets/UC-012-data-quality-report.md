@@ -35,6 +35,7 @@ fuzzy analysis. This report becomes the data section of the paper.
 - [ ] Report generation is deterministic and takes < 10 min for 28 days on the VM
 - [ ] `make data-quality` works (`scripts/data_quality.py`)
 - [ ] Register invariant I5 with `@registry.invariant("I5")` in a module listed in `registry.EXPERIMENT_MODULES` (sample mode uses the fixture); without it the runner blocks every verdict (PM review of #44)
+- [ ] Report rows whose planned or actual arrival/departure falls in the ambiguous DST hour 02:00–02:59 local on 2026-10-25 (clocks go back), per operator (PM review of #45)
 
 ## Tests
 `tests/test_data_quality.py` on the fixture (known anomaly counts from ground_truth.json).
