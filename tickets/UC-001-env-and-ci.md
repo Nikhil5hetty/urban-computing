@@ -3,7 +3,7 @@ id: UC-001
 title: Lock dependencies and make CI green
 epic: setup
 milestone: M1
-status: todo
+status: in-progress
 owner: agent
 estimate_h: 1
 depends_on: []        # hard: needs merged code
