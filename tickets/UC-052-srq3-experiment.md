@@ -8,7 +8,7 @@ owner: agent
 estimate_h: 3
 depends_on: [UC-042, UC-053]        # hard: needs merged code
 soft_depends_on: [UC-040]   # soft: interface exists; integrate when merged
-agent: any
+agent: codex
 touches: [src/urban_computing/evaluation/srq3.py, tests/test_srq3.py]
 realdata: true
 ---

@@ -8,7 +8,7 @@ owner: agent
 estimate_h: 1
 depends_on: [UC-023]        # hard: needs merged code
 soft_depends_on: [UC-013]   # soft: interface exists; integrate when merged
-agent: any
+agent: codex
 touches: [src/urban_computing/evaluation/baseline.py, tests/test_baseline.py]
 realdata: true
 ---

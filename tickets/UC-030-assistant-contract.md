@@ -8,7 +8,7 @@ owner: agent
 estimate_h: 1
 depends_on: []        # hard: needs merged code
 soft_depends_on: []   # soft: interface exists; integrate when merged
-agent: any
+agent: claude
 touches: [src/urban_computing/assistant/contract.py, tests/test_contract_models.py]
 realdata: false
 ---

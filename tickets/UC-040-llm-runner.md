@@ -9,7 +9,7 @@ estimate_h: 4
 depends_on: []        # hard: needs merged code
 soft_depends_on: [UC-033, UC-030]   # soft: interface exists; integrate when merged
 agent: codex
-touches: [scripts/collect_llm.sh, src/urban_computing/llm/runner.py, src/urban_computing/llm/prompts.py, slurm/run_llm.sbatch, scripts/run_llm.py, tests/test_prompts.py, docs/methods.md]
+touches: [scripts/collect_llm.sh, src/urban_computing/llm/runner.py, src/urban_computing/llm/prompts.py, slurm/run_llm.sbatch, scripts/run_llm.py, tests/test_prompts.py, docs/llm.md]
 realdata: true
 ---
 

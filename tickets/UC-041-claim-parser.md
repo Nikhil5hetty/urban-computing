@@ -8,7 +8,7 @@ owner: agent
 estimate_h: 2
 depends_on: []        # hard: needs merged code
 soft_depends_on: [UC-030, UC-020]   # soft: interface exists; integrate when merged
-agent: any
+agent: claude
 touches: [src/urban_computing/llm/parser.py, tests/test_parser.py, config/lexicon.yaml]
 realdata: false
 ---

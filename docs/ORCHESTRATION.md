@@ -72,6 +72,21 @@ issue labels: agent:running → agent:review (Claude: PR opened; Codex: PR marke
 7. First run: Actions → dispatch → *Run workflow* with `dry_run` ticked; check the plan;
    then run without it.
 
+### Agent lanes (D-020)
+
+Claude and Codex work in parallel, so each ticket has a fixed `agent:` (no `any`) and the two
+lanes never touch the same path (`tests/test_lanes.py` fails otherwise). Within a lane, tickets
+may share files (e.g. `docs/methods.md` in the Claude lane), because each agent works one
+ticket at a time.
+
+| Lane | Tickets | Paths |
+|---|---|---|
+| Claude (cloud dispatcher) | UC-020–023, 030, 031, 032, 041, 042, 060, 061, 070, 071, 072 | `fuzzy/`, `assistant/`, `llm/parser.py`, `llm/checkers.py`, `evaluation/segments.py`, `app/`, `paper/`, `docs/methods.md`, `config/vocabulary.yaml`, `config/lexicon.yaml` |
+| Codex (local runner) | UC-001, 004, 010–014, 024, 033, 040, 043, 050–054, 074 | `pyproject.toml`, `uv.lock`, CI, `data/`, `tests/fixtures/`, `evaluation/` (except `segments.py`), `llm/runner.py`, `llm/prompts.py`, `llm/query_tool.py`, `slurm/`, `docs/data.md`, `docs/llm.md`, `config/study.yaml` |
+
+To move a ticket to the other lane, change its `agent:` and run `make check`; the lane test
+tells you which paths would then be shared.
+
 ### Local Codex runner (`scripts/codex_local.py`)
 
 Runs Codex tickets one at a time on your machine with the Codex CLI and your ChatGPT login
