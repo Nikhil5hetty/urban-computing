@@ -113,7 +113,15 @@ TODO.
 Implementation: `urban_computing.llm.checkers.check(claim, values, vocab, config)` (pure,
 no I/O). Each parsed claim "Q [R] x are S" (UC-041, D-022) is scored twice on the same rows:
 the segment's values for the summarizer's attribute, restricted crisply by R (time band /
-weekday group equal to the claim's key), with missing values (NaN) dropped.
+weekday group equal to the claim's key), with missing values (NaN) dropped. The rules are
+decision D-023.
+
+**Missing vs cancelled.** NaN means "unknown" (e.g. no measured time) and the row is dropped
+by both checkers. A cancelled connection (departing train cancelled, `b_cancelled`) is not
+unknown: the passenger lost the connection. Callers therefore encode its slack as −∞, which
+both checkers count as `missed` (crisp: −∞ < 0; fuzzy: μ_missed(−∞) = 1, μ_tight =
+μ_comfortable = 0) and which stays in n. Example (test): slack [3, 3, 3, −1, −∞, −∞] gives
+p(missed) = 0.5 over n = 6; with NaN instead of −∞ it would be 0.25 over n = 4.
 
 **Crisp checker (Stat-to-Text style, D-012).** Each row gets exactly one crisp summarizer
 word, then the crisp proportion p = (rows with the word) / (rows) is compared with a crisp
@@ -145,6 +153,18 @@ for both words, §1), except where a definition fixes it:
 
 The SBB rule makes `slightly_late` crisply narrow (3–4 min) although its fuzzy word spans
 1–5 min; this is the intended contrast between the official and the graded view.
+
+**SRQ3 crisp checker ≠ SRQ2 crisp baseline (by design).** The SRQ2 crisp *baseline* (UC-032,
+D-007) is the official view: an arrival is punctual (< 3 min) or not punctual (≥ 3 min), so
+"late" there means any delay ≥ 3 min. The SRQ3 crisp *checker* must score claims that use
+our four delay words, so it needs one crisp reading *per word*: the 0.5-cut partition above,
+where crisp `late` is [4, 9) and a 3-min delay is crisply `slightly_late`. The checker thus
+models a Stat-to-Text-style verifier that takes the claim's words literally, while the SRQ2
+baseline models the operator's punctuality statistic. Consequence (UC-004 borderline
+fixture, Zürich HB IC1: 13 × 3 min, 12 × 0 min): "most trains are late" is crisply *false*
+for the checker (0 of 25 rows in [4, 9)), although 52 % are late in the official sense;
+"most trains are slightly late" is crisply true (0.52 > 0.5) but fuzzily false
+(μ_most(0.52) = 0.057). An ablation with crisp `late` = official ≥ 3 min is UC-054.
 
 **Fuzzy checker.** p_fuzzy is the fuzzy proportion of §2 (crisp R, μ_S from §1) and the truth
 is v = μ_Q(p_fuzzy); the claim is fuzzily true if v ≥ 0.5 (`fuzzy_true`).

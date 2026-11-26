@@ -3,7 +3,15 @@
 Pure functions: no I/O, inputs are never mutated. The crisp checker follows Stat-to-Text
 truth conditions (D-012): each row gets exactly one crisp word, a quantifier is a crisp
 proportion threshold. The fuzzy checker is the UC-021 truth engine with the UC-020
-vocabulary. Both use the same rows (NaN rows dropped) and the same crisp restriction.
+vocabulary. Both use the same rows and the same crisp restriction.
+
+Missing vs cancelled (D-023): NaN means "unknown" and the row is dropped by both checkers.
+A cancelled connection (departing train B cancelled, `b_cancelled`) is a real outcome for
+the passenger, so callers encode its slack as -inf: it is then crisply and fuzzily
+`missed` (mu_missed = 1, mu_tight = mu_comfortable = 0) and counts in n.
+
+The SRQ3 crisp *checker* (one crisp word per row) differs by design from the SRQ2 crisp
+*baseline* (official punctual / not punctual at 3 min, UC-032): see docs/methods.md §6.
 
 `values` holds one array per attribute (`arrival_delay_minutes`,
 `connection_slack_minutes`) and the row attributes used by restrictions: `time_band`

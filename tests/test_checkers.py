@@ -260,3 +260,76 @@ def test_length_mismatch_raises():
     values = {D: np.array([1.0, 2.0]), "time_band": np.array(["midday"])}
     with pytest.raises(ValueError):
         check(claim("most", f"{D}:late", "time_band=midday"), values, VOCAB, CONFIG)
+
+
+# --------------------------------------------------------------------- review #43
+
+
+FIXTURE = ROOT / "tests" / "fixtures" / "ist_sample"
+
+
+def _borderline_delays() -> np.ndarray:
+    """Arrival delays (min) of the UC-004 borderline segment, read from the fixture CSVs:
+    Zürich HB, line IC1, REAL arrivals (no pass-through, extra or cancelled trips)."""
+    import csv
+    from datetime import datetime
+
+    out = []
+    for path in sorted(FIXTURE.glob("*_IstDaten.csv")):
+        with path.open(encoding="utf-8") as fh:
+            for r in csv.DictReader(fh, delimiter=";"):
+                if (r["HALTESTELLEN_NAME"], r["LINIEN_TEXT"]) != ("Zürich HB", "IC1"):
+                    continue
+                if "true" in (r["DURCHFAHRT_TF"], r["ZUSATZFAHRT_TF"], r["FAELLT_AUS_TF"]):
+                    continue
+                if r["AN_PROGNOSE_STATUS"] != "REAL" or not r["ANKUNFTSZEIT"]:
+                    continue
+                planned = datetime.strptime(r["ANKUNFTSZEIT"], "%d.%m.%Y %H:%M")
+                actual = datetime.strptime(r["AN_PROGNOSE"], "%d.%m.%Y %H:%M:%S")
+                out.append((actual - planned).total_seconds() / 60.0)
+    return np.array(out)
+
+
+def test_uc004_borderline_fixture():
+    """The ticket's borderline fixture: Zürich HB IC1, 13 x 3 min and 12 x 0 min."""
+    import json
+
+    truth = json.loads((FIXTURE / "ground_truth.json").read_text(encoding="utf-8"))
+    seg = next(s for s in truth["segments"] if (s["hub"], s["line"]) == ("Zürich HB", "IC1"))
+    x = _borderline_delays()
+    assert int((x < 3).sum()) == seg["delay_counts"]["under_3_min"] == 12
+    assert int((x >= 3).sum()) == seg["delay_counts"]["at_least_3_min"] == 13
+    values = {D: x}
+
+    late = check(claim("most", f"{D}:late"), values, VOCAB, CONFIG)
+    assert (late.crisp, late.fuzzy, late.disagreement) == (False, 0.0, "none")
+    assert late.p_crisp == 0.0 and late.n == 25  # crisp late = [4, 9): no 3-min row
+
+    slightly = check(claim("most", f"{D}:slightly_late"), values, VOCAB, CONFIG)
+    assert slightly.crisp is True and slightly.p_crisp == pytest.approx(0.52)
+    assert slightly.fuzzy == pytest.approx((0.52 - 0.5) / 0.35)  # 0.057
+    assert slightly.disagreement == "crisp_true_fuzzy_false"
+
+
+def test_cancelled_connections_encoded_minus_inf_count_as_missed():
+    cancelled = np.array([3.0, 3.0, 3.0, -1.0, -np.inf, -np.inf])
+    r = check(claim("about_half", f"{C}:missed"), {C: cancelled}, VOCAB, CONFIG)
+    assert r.n == 6  # not dropped
+    assert r.p_crisp == pytest.approx(0.5) and r.p_fuzzy == pytest.approx(0.5)
+    assert r.crisp is True and r.fuzzy == pytest.approx(1.0)
+    for word in ("tight", "comfortable"):
+        other = check(claim("few", f"{C}:{word}"), {C: cancelled}, VOCAB, CONFIG)
+        assert other.n == 6 and other.p_crisp == pytest.approx(0.0 if word == "tight" else 0.5)
+    # NaN = unknown: dropped, which would understate the passenger's missed share
+    unknown = np.array([3.0, 3.0, 3.0, -1.0, np.nan, np.nan])
+    r = check(claim("few", f"{C}:missed"), {C: unknown}, VOCAB, CONFIG)
+    assert r.n == 4 and r.p_fuzzy == pytest.approx(0.25)
+
+
+def test_decision_d023_recorded():
+    rows = [ln for ln in (ROOT / "docs" / "decisions.md").read_text().splitlines()
+            if ln.startswith("| D-023 ")]  # fmt: skip
+    assert len(rows) == 1
+    assert rows[0].split("|")[3].strip() in {"proposed", "accepted"}
+    sec6 = (ROOT / "docs" / "methods.md").read_text().split("## 6. Claim checkers")[1]
+    assert "SRQ2" in sec6 and "−∞" in sec6 and "D-023" in sec6
