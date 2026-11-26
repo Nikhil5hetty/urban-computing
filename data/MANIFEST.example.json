@@ -1,0 +1,27 @@
+{
+  "files": [
+    {
+      "path": "raw/ist-daten/2026-10-01_IstDaten.csv",
+      "url": "https://archive.opentransportdata.swiss/istdaten/2026/ist-daten-v2-2026-10.zip",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "bytes": 123,
+      "downloaded_at": "2026-11-26T00:00:00+00:00"
+    },
+    {
+      "path": "raw/ist-daten/ist-daten-v2-2026-10.zip",
+      "url": "https://archive.opentransportdata.swiss/istdaten/2026/ist-daten-v2-2026-10.zip",
+      "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "bytes": 123,
+      "downloaded_at": "2026-11-26T00:00:00+00:00"
+    },
+    {
+      "path": "raw/service-points/actual-date-swiss-service-point.csv",
+      "url": "https://data.opentransportdata.swiss/dataset/39e5f264-257a-4f3f-bccc-5322c37058c5/resource/38ae9c04-05e4-4420-8c56-250ac6f4eb2f/download/actual-date-swiss-service-point.csv",
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "bytes": 123,
+      "downloaded_at": "2026-11-26T00:00:00+00:00"
+    }
+  ],
+  "source": "opentransportdata.swiss",
+  "terms": "Open use. Must provide the source."
+}

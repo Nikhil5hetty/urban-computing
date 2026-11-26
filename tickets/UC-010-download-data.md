@@ -3,7 +3,7 @@ id: UC-010
 title: Download Ist-Daten Oct 2026 and service points with checksummed manifest
 epic: data
 milestone: M1
-status: todo
+status: done
 owner: agent
 estimate_h: 2
 depends_on: []        # hard: needs merged code
