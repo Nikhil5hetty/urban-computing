@@ -33,6 +33,9 @@ _COMPARISONS = {
     ast.NotEq: operator.ne,
 }
 _FIELDS = ("point", "ci_low", "ci_high", "p", "value")
+_INVARIANT_MODULE = "urban_computing.evaluation.invariants"
+_SAMPLE_INVARIANTS = ("I1", "I2", "I4", "I5")
+_REAL_INVARIANTS = ("I1", "I2", "I3", "I4", "I5")
 
 
 def _operand(node: ast.expr, values: Result) -> float | None:
@@ -82,19 +85,23 @@ def verdict(spec: dict, result: Result) -> str:
 
 def _modules(only: str | None) -> set[str]:
     names = registry.EXPERIMENT_MODULES
+    selected = names
     if only is not None:
-        names = tuple(name for name in names if only in (name, name.rsplit(".", 1)[-1]))
-        if not names:
+        selected = tuple(name for name in names if only in (name, name.rsplit(".", 1)[-1]))
+        if not selected:
             raise ValueError(f"Unknown evaluation module {only!r}")
     loaded = set()
     for name in names:
+        if name not in selected and name != _INVARIANT_MODULE:
+            continue
         try:
             import_module(name)
         except ModuleNotFoundError as exc:
             if exc.name != name:
                 raise
         else:
-            loaded.add(name)
+            if name in selected:
+                loaded.add(name)
     return loaded
 
 
@@ -198,25 +205,15 @@ def _evaluate(ctx: Context, specs: dict, only: str | None, out: Path) -> tuple[d
     def selected(fn: Any) -> bool:
         return only is None or fn.__module__ in loaded
 
-    gates = {}
-    if only is None or only in ("invariants", "urban_computing.evaluation.invariants"):
-        gates = {"I1": _analytical_truth, "I2": _simpful_memberships}
-        if not ctx.sample:
-            gates["I3"] = _manifest
-    gates.update({key: fn for key, fn in registry.INVARIANTS.items() if selected(fn)})
+    required = _SAMPLE_INVARIANTS if ctx.sample else _REAL_INVARIANTS
+    gates = {"I1": _analytical_truth, "I2": _simpful_memberships, "I3": _manifest}
+    gates.update(registry.INVARIANTS)
     invariants, failures, missing = {}, {}, []
-    for spec in specs["invariants"]:
-        key = spec["id"]
+    for key in required:
         if key not in gates:
             missing.append(key)
             continue
-        try:
-            result = gates[key](ctx)
-        except NotImplementedError as exc:
-            if exc.args != ("UC-021",):
-                raise
-            missing.append(key)
-            continue
+        result = gates[key](ctx)
         invariants[key] = "pass" if result.passed else "fail"
         if not result.passed:
             failures[key] = result.details
@@ -230,7 +227,7 @@ def _evaluate(ctx: Context, specs: dict, only: str | None, out: Path) -> tuple[d
             outcome = "not_run"
             result = Result()
         else:
-            outcome = "blocked_by_invariant" if failures else verdict(spec, result)
+            outcome = "blocked_by_invariant" if failures or missing else verdict(spec, result)
         hypotheses[key] = {**asdict(result), "verdict": outcome}
 
     tables = {}
@@ -247,10 +244,15 @@ def _evaluate(ctx: Context, specs: dict, only: str | None, out: Path) -> tuple[d
     if failures:
         lines.extend(["", "## Invariant failures", ""])
         lines.extend(f"- {key} failed. {details}" for key, details in failures.items())
+    if missing:
+        lines.extend(["", f"## Required invariants not run: {', '.join(missing)}"])
+    if failures or missing:
         lines.append("\nHypothesis verdicts are blocked.")
     lines.extend(["", "## Invariants", ""])
     lines.extend(f"- {key} {status}" for key, status in invariants.items())
-    lines.extend(f"- {key} not run" for key in missing)
+    if ctx.sample:
+        lines.append("- I3 is required only for real data.")
+    lines.append("- I6 is checked by the paper export (UC-070).")
     lines.extend(["", "## Hypotheses", ""])
     if only:
         lines.append(f"Selected module `{only}`.\n")

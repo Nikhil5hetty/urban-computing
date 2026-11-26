@@ -28,6 +28,9 @@ def workspace(tmp_path, monkeypatch):
 
 
 def test_schema_and_reproducibility(workspace):
+    for key in ("I4", "I5"):
+        registry.invariant(key)(lambda ctx: registry.InvariantResult(True))
+
     @registry.experiment("H1a")
     def measure(ctx):
         assert ctx.sample
@@ -54,7 +57,7 @@ def test_schema_and_reproducibility(workspace):
     preregistration = yaml.safe_load(Path("eval/hypotheses.yaml").read_text())
     assert set(first) == {"hypotheses", "invariants", "tables", "meta"}
     assert set(first["hypotheses"]) == {spec["id"] for spec in preregistration["hypotheses"]}
-    assert first["invariants"] == {"I1": "pass", "I2": "pass"}
+    assert first["invariants"] == {"I1": "pass", "I2": "pass", "I4": "pass", "I5": "pass"}
     assert first["hypotheses"]["H1a"] == {
         "point": pytest.approx(2 / 3),
         "ci_low": 0.1,
@@ -76,6 +79,7 @@ def test_failed_invariant_runs_first_and_blocks_verdict(workspace, monkeypatch):
 
     monkeypatch.setattr(truth, "truth_simple", lambda memberships, quantifier: 0.0)
     events = []
+    registry.invariant("I5")(lambda ctx: registry.InvariantResult(True))
 
     @registry.invariant("I4")
     def gate(ctx):
@@ -95,8 +99,52 @@ def test_failed_invariant_runs_first_and_blocks_verdict(workspace, monkeypatch):
     assert result["hypotheses"]["H1b"]["p"] is None
     assert result["hypotheses"]["H1a"]["verdict"] == "not_run"
     report = (workspace / "results/REPORT.md").read_text()
-    assert report.index("I4 failed") < report.index("## Hypotheses")
+    assert report.splitlines()[2] == "## Invariant failures"
     assert "fixture mismatch" in report
+
+
+@pytest.mark.parametrize("only", [None, "srq1"])
+def test_missing_required_invariant_blocks_verdict(workspace, monkeypatch, only):
+    from urban_computing.evaluation import run as runner
+
+    invariant_module = "urban_computing.evaluation.invariants"
+    srq1 = "urban_computing.evaluation.srq1"
+    monkeypatch.setattr(registry, "EXPERIMENT_MODULES", (invariant_module, srq1))
+    events = []
+
+    def import_provider(name):
+        if name == invariant_module:
+            registry.invariant("I5")(check)
+        elif name == srq1:
+            registry.experiment("H1b")(measure)
+
+    def check(ctx):
+        events.append("I5")
+        return registry.InvariantResult(True)
+
+    def measure(ctx):
+        events.append("H1b")
+        return registry.Result(value=1)
+
+    measure.__module__ = srq1
+    check.__module__ = invariant_module
+    monkeypatch.setattr(runner, "import_module", import_provider)
+    result = run(CONFIG, sample=True, only=only)
+    assert events == ["I5", "H1b"]
+    assert result["invariants"] == {"I1": "pass", "I2": "pass", "I5": "pass"}
+    assert result["hypotheses"]["H1b"]["verdict"] == "blocked_by_invariant"
+    report = (workspace / "results/REPORT.md").read_text()
+    assert report.splitlines()[2] == "## Required invariants not run: I4"
+    assert "I6 is checked by the paper export (UC-070)." in report
+
+
+def test_unimplemented_invariant_raises(workspace):
+    @registry.invariant("I1")
+    def gate(ctx):
+        raise NotImplementedError("UC-021")
+
+    with pytest.raises(NotImplementedError, match="UC-021"):
+        run(CONFIG, sample=True)
 
 
 def test_only_imports_and_runs_selected_module(workspace, monkeypatch):

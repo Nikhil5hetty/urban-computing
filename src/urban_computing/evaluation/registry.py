@@ -11,8 +11,9 @@ An experiment module registers functions at import time:
         ...
         return Result(point=0.14, ci_low=0.11, ci_high=0.17)
 
-The runner imports every module listed in EXPERIMENT_MODULES (missing modules are skipped,
-so hypotheses whose ticket is not merged get verdict "not_run").
+The runner imports modules listed in EXPERIMENT_MODULES (missing modules are skipped,
+so hypotheses whose ticket is not merged get verdict "not_run"). The runner also
+loads evaluation.invariants with every --only selection.
 The runner supplies I1–I3 until an invariant provider registers those IDs.
 """
 
@@ -23,7 +24,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 EXPERIMENT_MODULES = (
-    "urban_computing.evaluation.invariants",  # I1..I6 wrappers (UC-053)
+    "urban_computing.evaluation.invariants",  # I1..I5 wrappers
     "urban_computing.evaluation.baseline",  # UC-024 (table only, no hypothesis)
     "urban_computing.evaluation.srq1",  # UC-050: H1a H1b H1c
     "urban_computing.evaluation.srq2",  # UC-051: H2a H2b
