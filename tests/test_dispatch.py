@@ -90,5 +90,5 @@ def test_prompt_mentions_ticket_and_rules():
         text = dispatch.render_prompt(t, agent, 12)
         assert "UC-021" in text and "#12" in text and "AGENTS.md" in text
         assert t.path.name in text
-    assert "cannot push" in dispatch.render_prompt(t, "codex", 12)
+    assert "Codex cloud task" in dispatch.render_prompt(t, "codex", 12)
     assert "gh pr create" in dispatch.render_prompt(t, "claude", 12)

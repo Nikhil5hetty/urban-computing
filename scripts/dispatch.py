@@ -10,7 +10,8 @@ Used by .github/workflows/dispatch.yml; also runnable locally.
     python3 scripts/dispatch.py reconcile                       # clean up labels
 
 State lives in GitHub issue labels (ticket -> issue via tickets/ISSUE_MAP.json):
-    agent:running   a job is working on it (counts against the caps)
+    agent:running   an agent is working on it (counts against the caps); for Codex cloud
+                    until you mark its draft PR "Ready for review"
     agent:review    the job opened a PR; waiting for a human merge (does not count)
     agent:failed    the job failed; a human removes the label to allow a retry
     agent:claude / agent:codex   who got it
@@ -223,11 +224,11 @@ AGENT_SPECIFIC = {
         "`Closes #{issue}`."
     ),
     "codex": (
-        "You have no network access and cannot push. Edit files in the workspace only; the "
-        "workflow commits your changes to branch `{branch}`, runs `make check` again and "
-        "opens the pull request. Run checks with `UV_OFFLINE=1 make check`. Finish with a "
-        "short summary (what changed, how you tested, deviations, TODO(verify) items): it "
-        "becomes the pull request description."
+        "You are running as a Codex cloud task on the draft pull request for branch "
+        "`{branch}` (it already contains a commit setting the ticket to in-progress). Commit "
+        "your work to that branch with messages starting `{id}:` and push. Run "
+        "`make check` before your final push. In your final message summarise what changed, "
+        "how you tested, deviations and TODO(verify) items."
     ),
 }
 
@@ -324,6 +325,25 @@ def cmd_finish(args: argparse.Namespace) -> int:
     return 0
 
 
+def _pr_for_branch(branch: str) -> dict | None:
+    out = gh(
+        [
+            "pr",
+            "list",
+            "-R",
+            repo(),
+            "--state",
+            "all",
+            "--head",
+            branch,
+            "--json",
+            "state,isDraft,mergedAt,url",
+        ]
+    )
+    prs = json.loads(out)
+    return prs[0] if prs else None
+
+
 def cmd_reconcile(args: argparse.Namespace) -> int:
     """Drop state labels for tickets that are done on main; fail tickets whose PR was
     closed without merging."""
@@ -334,6 +354,14 @@ def cmd_reconcile(args: argparse.Namespace) -> int:
         issue = int(issue_map[tid]["number"])
         if tickets[tid].meta.get("status") == "done":
             set_labels(issue, [], ["agent:running", "agent:review"])
+            continue
+        if state.running.get(tid) == "codex":
+            pr = _pr_for_branch(branch_for(tickets[tid]))
+            if pr and pr["state"] == "OPEN" and not pr["isDraft"]:
+                set_labels(issue, ["agent:review"], ["agent:running"])
+            elif pr and pr["state"] == "CLOSED" and not pr["mergedAt"]:
+                set_labels(issue, ["agent:failed"], ["agent:running"])
+                comment(issue, "Codex PR closed without merge; marked `agent:failed`.")
             continue
         if tid in state.review:
             out = gh(
@@ -367,8 +395,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--mark", action="store_true", help="label + comment the picked issues")
     p.add_argument("--run-url", default="")
     p.add_argument("--output", choices=["text", "github"], default="text")
-    p.add_argument("--cap-total", type=int, default=int(os.environ.get("DISPATCH_CAP", 4)))
-    p.add_argument("--cap-claude", type=int, default=int(os.environ.get("DISPATCH_CAP_CLAUDE", 2)))
+    p.add_argument("--cap-total", type=int, default=int(os.environ.get("DISPATCH_CAP", 3)))
+    p.add_argument("--cap-claude", type=int, default=int(os.environ.get("DISPATCH_CAP_CLAUDE", 1)))
     p.add_argument("--cap-codex", type=int, default=int(os.environ.get("DISPATCH_CAP_CODEX", 2)))
     p.set_defaults(fn=cmd_plan)
     q = sub.add_parser("prompt")

@@ -19,51 +19,66 @@ agent tickets are ready at once (vs 3 before).
 `docs/REALDATA_RUNS.md` (Batches A–D, one `make` target per step) and run by Nikhil on the
 VM / UBELIX when convenient.
 
-## 3. Auto-dispatch (`.github/workflows/dispatch.yml`)
+## 3. Auto-dispatch (`.github/workflows/dispatch.yml`) — subscriptions only
+
+Runs on your Claude Pro and ChatGPT plans; no API keys.
 
 ```
 push to main / hourly / manual
         │
         ▼
 plan job ── reconcile labels ── select ready tickets (setup first, then critical path)
-        │                         caps: total 4, claude 2, codex 2 (repo variables)
-        ├──► claude job (matrix)   anthropics/claude-code-action@v1
+        │                         caps: total 3, claude 1, codex 2 (repo variables)
+        ├──► claude job (matrix)   anthropics/claude-code-action@v1, CLAUDE_CODE_OAUTH_TOKEN
         │      Claude reads AGENTS.md + ticket, implements, runs make check,
         │      pushes branch uc-xxx-slug and opens the PR itself
-        └──► codex_work job (matrix)   openai/codex-action@v1, sandbox ":workspace", no network
-               │  exports the diff as an artifact
-               ▼
-             codex_pr job: fresh runner applies the patch, re-runs make check,
-               pushes, opens the PR (draft if make check failed)
+        └──► codex job (matrix)    opens a DRAFT PR on branch uc-xxx-slug and comments
+               "@codex implement this ticket …" (posted as you via DISPATCH_PAT)
+               → Codex cloud runs on your ChatGPT plan and pushes to that branch
+               → you mark the PR "Ready for review" when Codex is done
         │
         ▼
-issue labels: agent:running → agent:review (PR open) → removed when the ticket is done on main
+issue labels: agent:running → agent:review (Claude: PR opened; Codex: PR marked ready)
+              → removed when the ticket is done on main
               agent:failed if the job failed or the PR was closed unmerged (no auto-retry)
 ```
 
 ### One-time setup
 
-1. **Labels and issues:** `python3 scripts/bootstrap_github.py --repo OWNER/urban-computing`
-   (already done) and, after this change, `--sync-status` to refresh issue bodies with the
-   hard/soft dependencies.
-2. **Secrets** (Settings → Secrets and variables → Actions → Secrets):
-   - `DISPATCH_PAT`: fine-grained personal access token limited to this repo with
-     *Contents*, *Pull requests* and *Issues* read/write. Needed because events created
-     with the default `GITHUB_TOKEN` do not trigger other workflows, so PRs opened with it
-     would not run CI.
-   - `CLAUDE_CODE_OAUTH_TOKEN` (run `claude setup-token` locally; uses your Claude
-     subscription) **or** `ANTHROPIC_API_KEY`.
-   - `OPENAI_API_KEY` (the Codex GitHub Action needs an API key).
-3. **Variables** (same page → Variables): `DISPATCH_ENABLED=true`; optionally
-   `DISPATCH_CAP`, `DISPATCH_CAP_CLAUDE`, `DISPATCH_CAP_CODEX`.
-4. **Branch protection on `main`** (recommended): require the `ci / check` status and one
+1. **Refresh issues:** `uv run --no-project --with pyyaml python scripts/bootstrap_github.py
+   --repo OWNER/urban-computing --sync-status` (adds hard/soft dependencies to the issues).
+2. **Claude token:** run `claude setup-token` on your laptop (log in with your Pro account).
+   Add the printed token as repo secret `CLAUDE_CODE_OAUTH_TOKEN`.
+3. **Personal access token:** GitHub → Settings → Developer settings → Fine-grained tokens →
+   only this repository; *Contents*, *Pull requests*, *Issues*: read and write. Add as repo
+   secret `DISPATCH_PAT`. It is needed because events created with the default
+   `GITHUB_TOKEN` do not trigger other workflows (no CI on agent PRs), and so the `@codex`
+   comment comes from your account.
+4. **Codex cloud:** at chatgpt.com/codex connect GitHub, give it access to this repo and
+   create an environment for it. Setup script:
+   ```bash
+   pip install uv && uv sync --extra dev
+   ```
+   Then on any PR, test once by commenting `@codex say hello` to confirm it responds.
+5. **Variables** (Settings → Secrets and variables → Actions → Variables):
+   `DISPATCH_ENABLED=true`. Optional: `DISPATCH_CAP`, `DISPATCH_CAP_CLAUDE`,
+   `DISPATCH_CAP_CODEX`.
+6. **Branch protection on `main`** (recommended): require the `ci / check` status and one
    approving review. Agents never merge.
-5. First run: Actions → dispatch → *Run workflow* with `dry_run` ticked; check the plan;
+7. First run: Actions → dispatch → *Run workflow* with `dry_run` ticked; check the plan;
    then run without it.
+
+### Manual mode (no automation, same tickets)
+
+`python3 scripts/dispatch.py prompt UC-021 --agent claude` prints the exact prompt. Paste
+it into Claude Code (terminal, VM) or the Codex app/CLI. Before you start, add the label
+`agent:running` to the ticket's issue so the dispatcher skips it.
 
 ### Daily operation
 
 - Merge a reviewed PR → the dispatcher starts whatever just became ready.
+- Codex draft PR finished (Codex posted its summary) → review it, mark *Ready for review*,
+  merge. Marking it ready frees the Codex slot on the next dispatch run.
 - A ticket stuck in `agent:failed`: read the comment, fix the ticket text or the cause,
   remove the label → it is picked up on the next run (merge, hourly, or manual).
 - Pause everything: set `DISPATCH_ENABLED=false`.
@@ -71,10 +86,13 @@ issue labels: agent:running → agent:review (PR open) → removed when the tick
   skips it; open the PR as usual.
 - Paste PR links into the claude.ai Project; the PM reviews them against the ticket.
 
-### Costs and limits
+### Usage limits
 
-Each dispatched ticket is one agent session (Claude: up to 80 turns; Codex: one
-`codex exec`). With caps 2 + 2 at most four run at a time. Lower the caps to spend less.
+Everything runs on your subscriptions, so dispatched sessions share the same usage limits
+as your own interactive Claude Code / Codex use. Claude Pro limits are tight: one Claude
+ticket at a time (up to 80 turns) is the default; raise `DISPATCH_CAP_CLAUDE` only if you
+see headroom. If a session stops on a usage limit, the ticket ends in `agent:failed`;
+remove the label after the limit resets.
 
 ### Known risks
 

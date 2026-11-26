@@ -17,7 +17,8 @@ Do this, in order:
    fields or citations: write `TODO(verify)` instead and mention it in your summary.
 5. Cover every acceptance criterion with a test or a reproducible command.
    Real-data criteria: provide the command; do not try to download data.
-6. Run `make check` until it is green.
+6. Run `make check` until it is green (if the environment has no network, use
+   `UV_OFFLINE=1 make check`).
 7. Set `status: done` in `tickets/{file}` (or `status: blocked` plus a `## Blocker`
    section if you cannot finish; then stop).
 8. {agent_specific}
