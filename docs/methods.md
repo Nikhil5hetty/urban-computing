@@ -109,4 +109,48 @@ TODO.
 TODO.
 
 ## 6. Claim checkers (UC-042)
-TODO: crisp truth conditions (eida2026) and fuzzy truth.
+
+Implementation: `urban_computing.llm.checkers.check(claim, values, vocab, config)` (pure,
+no I/O). Each parsed claim "Q [R] x are S" (UC-041, D-022) is scored twice on the same rows:
+the segment's values for the summarizer's attribute, restricted crisply by R (time band /
+weekday group equal to the claim's key), with missing values (NaN) dropped.
+
+**Crisp checker (Stat-to-Text style, D-012).** Each row gets exactly one crisp summarizer
+word, then the crisp proportion p = (rows with the word) / (rows) is compared with a crisp
+quantifier threshold, set-based as in Eida et al. 2026 (eida2026), but deterministic (no
+LLM-written checker; D-012).
+
+Quantifier thresholds (`crisp_baseline` in `config/study.yaml` where present):
+
+| Quantifier | Crisp truth | Source / rationale |
+|---|---|---|
+| `most` | p > 0.5 | "most" = more than half, Stat-to-Text truth condition (D-012, eida2026; `crisp_baseline.most_threshold`). TODO(verify, UC-002): page / section in eida2026. |
+| `few` | p < 0.25 | Our choice: Stat-to-Text has no "few". A quarter keeps `few` clearly below `about_half`. |
+| `about_half` | \|p − 0.5\| ≤ 0.1 | Our choice (ticket UC-042): within 10 percentage points of one half. |
+| `almost_none`, `almost_all` | none (n/a) | Extended words (ablation only, D-022) have no crisp definition; only the fuzzy truth is reported. |
+
+Crisp summarizer words, interval [lo, hi) in minutes. The boundary between neighbouring
+words is the crossover of the fuzzy words, (c + d)/2 of the upper word's falling ramp (μ = 0.5
+for both words, §1), except where a definition fixes it:
+
+| Attribute | Word | Crisp interval | Boundary rationale |
+|---|---|---|---|
+| arrival delay | `on_time` | x < 3 | SBB punctuality: < 3 min late is punctual (D-007; `crisp_baseline.punctual_threshold_minutes`). |
+| arrival delay | `slightly_late` | 3 ≤ x < 4 | Upper bound 4 = midpoint of the slightly_late → late ramp [3, 5]. |
+| arrival delay | `late` | 4 ≤ x < 9 | Upper bound 9 = midpoint of the late → very_late ramp [8, 10]. |
+| arrival delay | `very_late` | x ≥ 9 | — |
+| connection slack | `missed` | x < 0 | Definition of slack: below 0 the transfer is not possible (§1). |
+| connection slack | `tight` | 0 ≤ x < 1.5 | Upper bound 1.5 = midpoint of the tight → comfortable ramp [1, 2]. |
+| connection slack | `comfortable` | x ≥ 1.5 | — |
+
+The SBB rule makes `slightly_late` crisply narrow (3–4 min) although its fuzzy word spans
+1–5 min; this is the intended contrast between the official and the graded view.
+
+**Fuzzy checker.** p_fuzzy is the fuzzy proportion of §2 (crisp R, μ_S from §1) and the truth
+is v = μ_Q(p_fuzzy); the claim is fuzzily true if v ≥ 0.5 (`fuzzy_true`).
+
+**Disagreement** (H3c): `crisp_true_fuzzy_false` if crisp is true and v < 0.5,
+`crisp_false_fuzzy_true` if crisp is false and v ≥ 0.5, `none` if they agree, `n/a` if either
+side is undefined (claim status not ok, word not in the vocabulary, attribute or restriction
+column missing, no rows left, extended quantifier). Example (test): 52 % of arrivals fully
+late → crisp "most are late" true (0.52 > 0.5), fuzzy truth μ_most(0.52) = 0.06 < 0.5.

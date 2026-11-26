@@ -3,7 +3,7 @@ id: UC-042
 title: Crisp and fuzzy claim checkers
 epic: llm
 milestone: M2
-status: in-progress
+status: done
 owner: agent
 estimate_h: 2
 depends_on: [UC-020, UC-021]        # hard: needs merged code
