@@ -26,6 +26,7 @@ robustness.
 - [ ] Ablations run from config overrides, not code edits
 - [ ] A "verdict_changes" column flags any ablation that flips a pre-registered verdict
 - [ ] Runtime documented
+- [ ] Ablation: crisp checker with official `late` = delay ≥ 3 min (SBB, D-007) instead of the 0.5-cut partition; report how H3c changes (PM review of #43)
 
 ## Tests
 `tests/test_ablations.py` on the fixture (override mechanism works).

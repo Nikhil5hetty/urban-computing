@@ -29,6 +29,7 @@ Compute H3a, H3b, H3c from the stored LLM outputs.
 - [ ] Uses `--mock` outputs on the fixture and real outputs on the VM, same code path
 - [ ] Pairing rule documented in docs/evaluation.md if changed (decision proposal)
 - [ ] All numbers registered in the project runner
+- [ ] Checker inputs encode cancelled departures (`b_cancelled`) as connection slack −∞ so they count as missed in both checkers; NaN only for unknown values (PM review of #43)
 
 ## Tests
 `tests/test_srq3.py` with mock outputs.
