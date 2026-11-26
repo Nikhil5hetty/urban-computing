@@ -13,6 +13,7 @@ An experiment module registers functions at import time:
 
 The runner imports every module listed in EXPERIMENT_MODULES (missing modules are skipped,
 so hypotheses whose ticket is not merged get verdict "not_run").
+The runner supplies I1–I3 until an invariant provider registers those IDs.
 """
 
 from __future__ import annotations
@@ -33,8 +34,12 @@ EXPERIMENT_MODULES = (
 
 @dataclass
 class Context:
-    """Everything an experiment may read. Experiments must not read files themselves
-    except through `paths`; `cache` lets experiments share loaded tables."""
+    """Study configuration, sample flag, input/output paths and reproducibility seed.
+
+    Resolve file inputs through `paths` and share loaded tables through `cache`.
+    In sample mode, `raw_dir` and `ground_truth` point to the checked-in fixture.
+    Derived data paths are temporary and isolated from the real-data run.
+    """
 
     config: dict
     sample: bool  # True for `make eval-sample` (synthetic fixture)
