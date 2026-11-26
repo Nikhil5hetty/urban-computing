@@ -3,7 +3,7 @@ id: UC-021
 title: Truth engine for linguistic summaries (NumPy + Simpful cross-check)
 epic: fuzzy
 milestone: M1
-status: todo
+status: in-progress
 owner: agent
 estimate_h: 3
 depends_on: []        # hard: needs merged code
