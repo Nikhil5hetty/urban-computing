@@ -11,8 +11,10 @@ An experiment module registers functions at import time:
         ...
         return Result(point=0.14, ci_low=0.11, ci_high=0.17)
 
-The runner imports every module listed in EXPERIMENT_MODULES (missing modules are skipped,
-so hypotheses whose ticket is not merged get verdict "not_run").
+The runner imports modules listed in EXPERIMENT_MODULES (missing modules are skipped,
+so hypotheses whose ticket is not merged get verdict "not_run"). The runner also
+loads evaluation.invariants with every --only selection.
+The runner supplies I1–I3 until an invariant provider registers those IDs.
 """
 
 from __future__ import annotations
@@ -22,7 +24,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 EXPERIMENT_MODULES = (
-    "urban_computing.evaluation.invariants",  # I1..I6 wrappers (UC-053)
+    "urban_computing.evaluation.invariants",  # I1..I5 wrappers
     "urban_computing.evaluation.baseline",  # UC-024 (table only, no hypothesis)
     "urban_computing.evaluation.srq1",  # UC-050: H1a H1b H1c
     "urban_computing.evaluation.srq2",  # UC-051: H2a H2b
@@ -33,8 +35,12 @@ EXPERIMENT_MODULES = (
 
 @dataclass
 class Context:
-    """Everything an experiment may read. Experiments must not read files themselves
-    except through `paths`; `cache` lets experiments share loaded tables."""
+    """Study configuration, sample flag, input/output paths and reproducibility seed.
+
+    Resolve file inputs through `paths` and share loaded tables through `cache`.
+    In sample mode, `raw_dir` and `ground_truth` point to the checked-in fixture.
+    Derived data paths are temporary and isolated from the real-data run.
+    """
 
     config: dict
     sample: bool  # True for `make eval-sample` (synthetic fixture)

@@ -3,7 +3,7 @@ id: UC-053
 title: Project-level evaluation runner (make eval / eval-sample)
 epic: evaluation
 milestone: M2
-status: todo
+status: done
 owner: agent
 estimate_h: 3
 depends_on: []        # hard: needs merged code
