@@ -68,6 +68,9 @@ jobs:
           prompt: ${{ steps.prompt.outputs.text }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.DISPATCH_PAT }}
+          # dispatch.yml starts this run with GITHUB_TOKEN, so the actor is the
+          # github-actions bot; the action refuses bot actors unless listed here.
+          allowed_bots: "github-actions"
           # Adjust if your Claude Code version uses a different tool syntax.
           claude_args: >-
             --max-turns 80
