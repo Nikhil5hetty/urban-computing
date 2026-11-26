@@ -1,0 +1,88 @@
+# One Claude Code run for one ticket. Started by dispatch.yml (`gh workflow run`), or by hand
+# from the Actions tab. Separate workflow because anthropics/claude-code-action does not
+# accept `push` events ("Unsupported event type: push"); workflow_dispatch is supported.
+# The issue must already carry agent:claude + agent:running (dispatch.yml sets them).
+name: claude-ticket
+
+on:
+  workflow_dispatch:
+    inputs:
+      id:
+        description: "Ticket id, e.g. UC-020"
+        required: true
+      title:
+        description: "Ticket title"
+        required: true
+      branch:
+        description: "Branch, e.g. uc-020-vocabulary"
+        required: true
+      issue:
+        description: "GitHub issue number"
+        required: true
+
+concurrency:
+  group: claude-ticket-${{ inputs.id }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  claude:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync --extra dev
+      - name: Keep generated uv.lock out of the change (only UC-001 commits it)
+        run: |
+          if [ "${{ inputs.id }}" != "UC-001" ] && ! git ls-files --error-unmatch uv.lock >/dev/null 2>&1; then
+            echo "uv.lock" >> .git/info/exclude
+          fi
+      - name: Render prompt
+        id: prompt
+        env:
+          ID: ${{ inputs.id }}
+          ISSUE: ${{ inputs.issue }}
+        run: |
+          {
+            echo "text<<PROMPT_EOF"
+            uv run python scripts/dispatch.py prompt "$ID" --agent claude --issue "$ISSUE"
+            echo
+            echo "PROMPT_EOF"
+          } >> "$GITHUB_OUTPUT"
+      - name: Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.DISPATCH_PAT }} # for `gh pr create` inside Claude's shell
+        with:
+          prompt: ${{ steps.prompt.outputs.text }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.DISPATCH_PAT }}
+          # Adjust if your Claude Code version uses a different tool syntax.
+          claude_args: >-
+            --max-turns 80
+            --allowedTools "Bash,Read,Write,Edit,Glob,Grep"
+      - name: Report result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ID: ${{ inputs.id }}
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          RESULT=$([ "${{ steps.claude.outcome }}" = "success" ] && echo success || echo failure)
+          PR=$(gh pr list -R "${{ github.repository }}" --head "$BRANCH" \
+                 --json url --jq '.[0].url' || true)
+          if [ "$RESULT" = "success" ] && [ -z "$PR" ]; then RESULT=failure; fi
+          uv run python scripts/dispatch.py finish "$ID" --agent claude \
+            --result "$RESULT" --pr-url "$PR" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

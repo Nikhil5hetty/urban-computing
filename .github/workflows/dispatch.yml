@@ -67,66 +67,37 @@ jobs:
             --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
   # ---------------------------------------------------------------- Claude Code
+  # claude-code-action rejects `push` events, so each picked ticket is started as its own
+  # workflow_dispatch run of claude-ticket.yml (GITHUB_TOKEN may trigger workflow_dispatch).
   claude:
     needs: plan
     if: needs.plan.outputs.has_claude == 'true' && inputs.dry_run != true
     runs-on: ubuntu-latest
-    timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      matrix:
-        ticket: ${{ fromJSON(needs.plan.outputs.claude) }}
     permissions:
-      contents: write
-      pull-requests: write
+      actions: write
       issues: write
-      id-token: write
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: astral-sh/setup-uv@v3
-      - run: uv sync --extra dev
-      - name: Keep generated uv.lock out of the change (only UC-001 commits it)
-        run: |
-          if [ "${{ matrix.ticket.id }}" != "UC-001" ] && ! git ls-files --error-unmatch uv.lock >/dev/null 2>&1; then
-            echo "uv.lock" >> .git/info/exclude
-          fi
-      - name: Render prompt
-        id: prompt
-        run: |
-          {
-            echo "text<<PROMPT_EOF"
-            uv run python scripts/dispatch.py prompt "${{ matrix.ticket.id }}" --agent claude \
-              --issue "${{ matrix.ticket.issue }}"
-            echo
-            echo "PROMPT_EOF"
-          } >> "$GITHUB_OUTPUT"
-      - name: Claude Code
-        id: claude
-        uses: anthropics/claude-code-action@v1
-        env:
-          GH_TOKEN: ${{ secrets.DISPATCH_PAT }} # for `gh pr create` inside Claude's shell
-        with:
-          prompt: ${{ steps.prompt.outputs.text }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.DISPATCH_PAT }}
-          # Adjust if your Claude Code version uses a different tool syntax.
-          claude_args: >-
-            --max-turns 80
-            --allowedTools "Bash,Read,Write,Edit,Glob,Grep"
-      - name: Report result
-        if: always()
+      - name: Start claude-ticket.yml per picked ticket
         env:
           GH_TOKEN: ${{ github.token }}
+          MATRIX: ${{ needs.plan.outputs.claude }}
+          REPO: ${{ github.repository }}
         run: |
-          RESULT=$([ "${{ steps.claude.outcome }}" = "success" ] && echo success || echo failure)
-          PR=$(gh pr list -R "${{ github.repository }}" --head "${{ matrix.ticket.branch }}" \
-                 --json url --jq '.[0].url' || true)
-          if [ "$RESULT" = "success" ] && [ -z "$PR" ]; then RESULT=failure; fi
-          uv run python scripts/dispatch.py finish "${{ matrix.ticket.id }}" --agent claude \
-            --result "$RESULT" --pr-url "$PR" \
-            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          set -u
+          status=0
+          while read -r t; do
+            id=$(jq -r .id <<<"$t"); issue=$(jq -r .issue <<<"$t")
+            if gh workflow run claude-ticket.yml -R "$REPO" --ref main \
+                 -f id="$id" -f title="$(jq -r .title <<<"$t")" \
+                 -f branch="$(jq -r .branch <<<"$t")" -f issue="$issue"; then
+              echo "started claude-ticket for $id"
+            else
+              echo "::error::could not start claude-ticket for $id"
+              gh issue edit "$issue" -R "$REPO" --add-label agent:failed --remove-label agent:running
+              status=1
+            fi
+          done < <(jq -c '.[]' <<<"$MATRIX")
+          exit $status
 
   # ---------------------------------------------------------------- Codex cloud
   # Opens a draft PR per ticket and asks Codex cloud to implement it via an @codex comment

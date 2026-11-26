@@ -29,9 +29,10 @@ push to main / hourly / manual
         ▼
 plan job ── reconcile labels ── select ready tickets (setup first, then critical path)
         │                         caps: config/dispatch.yaml (codex 0: runs locally)
-        ├──► claude job (matrix)   anthropics/claude-code-action@v1, CLAUDE_CODE_OAUTH_TOKEN
-        │      Claude reads AGENTS.md + ticket, implements, runs make check,
-        │      pushes branch uc-xxx-slug and opens the PR itself
+        ├──► claude job            starts claude-ticket.yml (workflow_dispatch) per ticket,
+        │      because claude-code-action rejects `push` events; that run uses
+        │      anthropics/claude-code-action@v1 + CLAUDE_CODE_OAUTH_TOKEN: Claude reads
+        │      AGENTS.md + ticket, implements, runs make check, pushes uc-xxx-slug, opens the PR
         └──► codex job (matrix)    opens a DRAFT PR on branch uc-xxx-slug and comments
                "@codex implement this ticket …" (posted as you via DISPATCH_PAT)
                → Codex cloud runs on your ChatGPT plan and pushes to that branch
