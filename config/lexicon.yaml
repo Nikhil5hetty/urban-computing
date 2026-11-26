@@ -1,0 +1,73 @@
+# Deterministic lexicon for the claim parser (UC-041). Maps free-text phrases to the
+# canonical words of config/vocabulary.yaml (quantifiers: set word; summarizers:
+# "<attribute>:<word>") and restrictions to "<family>=<key>" of config/study.yaml.
+# Matching: case-insensitive, whole words, longest phrase first ("very late" before "late").
+# Quantifier and summarizer keys themselves (e.g. "about_half", "on_time") match too;
+# restriction keys do not (a bare "early" is not the `early` band). Rules: D-022.
+# Changing this file changes SRQ3 parse results: log it in docs/decisions.md.
+
+# Default = core quantifier set only (few / about half / most): the words the UC-040 prompt
+# allows and the UC-042 crisp checker defines (D-022). Stronger phrases map to the nearest
+# core word. The extended words are for the UC-054 ablation only:
+# load_lexicon(quantifier_set="extended") moves the phrases listed under
+# `quantifiers_extended` to those words.
+quantifiers:
+  few: [few, a few, a handful, a handful of, a small number of, a small share of,
+        a minority of, not many, very few, hardly any, almost none, almost no, virtually no]
+  about_half: [about half, roughly half, around half, approximately half, nearly half,
+               close to half, half, about 50 percent, about 50%]
+  most: [most, the majority, the majority of, a majority of, mostly, the bulk of,
+         usually, generally, typically, in most cases, almost all, nearly all, virtually all,
+         almost always, nearly always]
+
+quantifiers_extended:   # ablation only (UC-054); see load_lexicon(quantifier_set=...)
+  almost_none: [almost none, hardly any, almost no, virtually no, very few]
+  almost_all: [almost all, nearly all, virtually all, almost always, nearly always]
+
+summarizers:
+  arrival_delay_minutes:on_time: [on time, punctual, punctually, on schedule, on-time]
+  arrival_delay_minutes:slightly_late: [slightly late, a little late, a bit late,
+                                        slightly delayed, a little delayed, a few minutes late]
+  arrival_delay_minutes:late: [late]
+  arrival_delay_minutes:very_late: [very late, badly delayed, severely delayed, heavily delayed,
+                                    significantly delayed, seriously delayed]
+  connection_slack_minutes:missed: [missed, miss, misses, missing the connection]
+  connection_slack_minutes:tight: [tight, very short, a close call, cutting it close, barely make]
+  connection_slack_minutes:comfortable: [comfortable, comfortably, plenty of time, relaxed,
+                                         easily make, easy to make]
+
+# Phrases whose meaning does not match one vocabulary word (D-022). A sentence or JSON field
+# using them becomes `unverifiable` with summarizer None: "delayed" means any delay in
+# everyday English, while `late` is 3-10 min. Qualified forms ("slightly delayed",
+# "badly delayed") are listed under the summarizers and win as the longer match.
+ambiguous_summarizers: [delayed, delay, delays, behind schedule]
+
+# Bare time words refer to the question's own segment (like hub and line mentions): they
+# are recognised and dropped, never turned into a restriction (D-022). Only the explicit
+# phrases under `restrictions` select another segment.
+own_segment_words: [morning, mornings, evening, evenings, rush hour, rush hours, peak,
+                    peak hours]
+
+restrictions:
+  weekday_group:
+    monday: [monday, mondays]
+    friday: [friday, fridays]
+    weekend: [weekend, weekends, saturday, saturdays, sunday, sundays]
+    weekday: [weekday, weekdays, working day, working days, workdays]
+  time_band:
+    early: [early morning, early mornings, early in the morning]
+    morning_peak: [morning peak, morning peak hours, morning rush, morning rush hour,
+                   morning rush hours, rush hour in the morning]
+    midday: [midday, middle of the day, lunchtime, around noon]
+    evening_peak: [evening peak, evening peak hours, evening rush, evening rush hour,
+                   evening rush hours, rush hour in the evening]
+    evening: [late evening, late evenings, late in the evening]
+    night: [night, nights, at night, overnight]
+
+# A sentence with one of these cues states a cause the data cannot check (rule 4).
+causal_cues: [because, due to, caused by, as a result of, owing to, on account of, thanks to,
+              the reason, results from, result of]
+
+# Negation makes a phrase-level mapping unsafe ("not late" != late): such sentences are
+# kept as unverifiable instead of guessed.
+negation_cues: [not, no, never, none, "n't", neither, nor, without]
