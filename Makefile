@@ -5,14 +5,14 @@
 	codex-next codex-loop
 
 install:
-	uv sync --extra dev
+	uv sync --locked --extra dev
 
 lint:
-	uv run ruff check .
-	uv run ruff format --check .
+	uv run --locked --extra dev ruff check .
+	uv run --locked --extra dev ruff format --check .
 
 test:
-	uv run pytest -m "not realdata and not gpu"
+	uv run --locked --extra dev pytest -m "not realdata and not gpu"
 
 # Task-level gate: must be green before any PR is opened.
 check: lint test

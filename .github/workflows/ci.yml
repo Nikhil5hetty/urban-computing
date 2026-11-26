@@ -8,17 +8,28 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
       - name: Install
-        run: uv sync --extra dev
-      - name: Lint
+        run: make install
+      - name: Verify installed dependencies
         run: |
-          uv run ruff check .
-          uv run ruff format --check .
-      - name: Unit + contract tests (no real data, no GPU)
-        run: uv run pytest -m "not realdata and not gpu"
+          uv run --no-sync python - <<'PY'
+          from importlib.util import find_spec
+
+          import simpful
+
+          for package in ("accelerate", "torch", "transformers"):
+              assert find_spec(package) is None, f"Unexpected LLM dependency: {package}"
+          PY
+      - name: Lint and unit tests
+        run: make check
       - name: Project evaluation on synthetic sample
         # Becomes meaningful once UC-053 lands; until then the module may not exist.
         run: |

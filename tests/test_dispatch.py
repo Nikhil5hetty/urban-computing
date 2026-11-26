@@ -43,6 +43,10 @@ def test_initial_wave_respects_caps_and_skips_humans():
 
 def test_setup_first_then_critical_path():
     tickets, issue_map = _setup()
+    # Exercise the initial setup wave regardless of the live status of these tickets.
+    for ticket in tickets:
+        if ticket.id in {"UC-001", "UC-004"}:
+            ticket.meta["status"] = "todo"
     state = dispatch.State(running={}, review=set(), failed=set())
     picks = dispatch.select(
         tickets, state, issue_map, cap_total=4, cap_agent={"claude": 2, "codex": 2}
