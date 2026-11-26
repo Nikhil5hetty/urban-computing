@@ -1,0 +1,299 @@
+{
+  "segments": [
+    {
+      "hub": "Zürich HB",
+      "line": "IC1",
+      "time_band": "morning_peak",
+      "delay_counts": {
+        "under_3_min": 12,
+        "at_least_3_min": 13
+      }
+    },
+    {
+      "hub": "Olten",
+      "line": "S3",
+      "time_band": "midday",
+      "delay_counts": {
+        "under_3_min": 3,
+        "at_least_3_min": 3
+      }
+    },
+    {
+      "hub": "Olten",
+      "line": "S9",
+      "time_band": "evening",
+      "delay_counts": {
+        "under_3_min": 1,
+        "at_least_3_min": 0
+      }
+    }
+  ],
+  "connections": [
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-01",
+      "arr_journey_id": "fixture:IC1:0:A",
+      "dep_journey_id": "fixture:IC1:0:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 4,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-02",
+      "arr_journey_id": "fixture:IC1:1:A",
+      "dep_journey_id": "fixture:IC1:1:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 4,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-03",
+      "arr_journey_id": "fixture:IC1:2:A",
+      "dep_journey_id": "fixture:IC1:2:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 1,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-01",
+      "arr_journey_id": "fixture:IC1:3:A",
+      "dep_journey_id": "fixture:IC1:3:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 1,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-02",
+      "arr_journey_id": "fixture:IC1:4:A",
+      "dep_journey_id": "fixture:IC1:4:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 1,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-03",
+      "arr_journey_id": "fixture:IC1:5:A",
+      "dep_journey_id": "fixture:IC1:5:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 1,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-01",
+      "arr_journey_id": "fixture:IC1:6:A",
+      "dep_journey_id": "fixture:IC1:6:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 1,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-02",
+      "arr_journey_id": "fixture:IC1:7:A",
+      "dep_journey_id": "fixture:IC1:7:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 1,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-03",
+      "arr_journey_id": "fixture:IC1:8:A",
+      "dep_journey_id": "fixture:IC1:8:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 1,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-01",
+      "arr_journey_id": "fixture:IC1:9:A",
+      "dep_journey_id": "fixture:IC1:9:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 4,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-02",
+      "arr_journey_id": "fixture:IC1:10:A",
+      "dep_journey_id": "fixture:IC1:10:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 1,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-03",
+      "arr_journey_id": "fixture:IC1:11:A",
+      "dep_journey_id": "fixture:IC1:11:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 4,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-01",
+      "arr_journey_id": "fixture:IC1:12:A",
+      "dep_journey_id": "fixture:IC1:12:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 1,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-02",
+      "arr_journey_id": "fixture:IC1:13:A",
+      "dep_journey_id": "fixture:IC1:13:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 4,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-03",
+      "arr_journey_id": "fixture:IC1:14:A",
+      "dep_journey_id": "fixture:IC1:14:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 4,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-01",
+      "arr_journey_id": "fixture:IC1:15:A",
+      "dep_journey_id": "fixture:IC1:15:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 4,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-02",
+      "arr_journey_id": "fixture:IC1:16:A",
+      "dep_journey_id": "fixture:IC1:16:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 1,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-03",
+      "arr_journey_id": "fixture:IC1:17:A",
+      "dep_journey_id": "fixture:IC1:17:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 4,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-01",
+      "arr_journey_id": "fixture:IC1:18:A",
+      "dep_journey_id": "fixture:IC1:18:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 4,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-02",
+      "arr_journey_id": "fixture:IC1:19:A",
+      "dep_journey_id": "fixture:IC1:19:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 4,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-03",
+      "arr_journey_id": "fixture:IC1:20:A",
+      "dep_journey_id": "fixture:IC1:20:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 4,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-01",
+      "arr_journey_id": "fixture:IC1:21:A",
+      "dep_journey_id": "fixture:IC1:21:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 1,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-02",
+      "arr_journey_id": "fixture:IC1:22:A",
+      "dep_journey_id": "fixture:IC1:22:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 4,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-03",
+      "arr_journey_id": "fixture:IC1:23:A",
+      "dep_journey_id": "fixture:IC1:23:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 1,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Zürich HB",
+      "operating_day": "2026-10-01",
+      "arr_journey_id": "fixture:IC1:24:A",
+      "dep_journey_id": "fixture:IC1:24:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": 1,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Olten",
+      "operating_day": "2026-10-02",
+      "arr_journey_id": "fixture:S3:1:A",
+      "dep_journey_id": "fixture:S3:1:B",
+      "planned_gap_min": 2,
+      "actual_gap_min": 0,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Olten",
+      "operating_day": "2026-10-03",
+      "arr_journey_id": "fixture:S3:2:A",
+      "dep_journey_id": "fixture:S3:2:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": -6,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Olten",
+      "operating_day": "2026-10-01",
+      "arr_journey_id": "fixture:S3:3:A",
+      "dep_journey_id": "fixture:S3:3:B",
+      "planned_gap_min": 15,
+      "actual_gap_min": 16,
+      "b_cancelled": false
+    },
+    {
+      "hub": "Olten",
+      "operating_day": "2026-10-03",
+      "arr_journey_id": "fixture:S3:5:A",
+      "dep_journey_id": "fixture:S3:5:B",
+      "planned_gap_min": 4,
+      "actual_gap_min": null,
+      "b_cancelled": true
+    }
+  ],
+  "anomalies": {
+    "departure_before_arrival": 1,
+    "cancelled": 1,
+    "pass_through": 1
+  }
+}

@@ -1,0 +1,26 @@
+_id;BETRIEBSTAG;FAHRT_BEZEICHNER;BETREIBER_ID;BETREIBER_ABK;BETREIBER_NAME;PRODUKT_ID;LINIEN_ID;LINIEN_TEXT;UMLAUF_ID;VERKEHRSMITTEL_TEXT;ZUSATZFAHRT_TF;FAELLT_AUS_TF;BPUIC;HALTESTELLEN_NAME;ANKUNFTSZEIT;AN_PROGNOSE;AN_PROGNOSE_STATUS;ABFAHRTSZEIT;AB_PROGNOSE;AB_PROGNOSE_STATUS;DURCHFAHRT_TF;SLOID
+1;1.10.2026;fixture:IC1:0:A;85:fixture;TEST;Synthetic operator;Zug;IC1;IC1;;IC;;;8503000;Zürich HB;01.10.2026 06:00;01.10.2026 06:00:00;REAL;;;;;ch:1:sloid:3000
+2;1.10.2026;fixture:IC1:0:B;85:fixture;TEST;Synthetic operator;Zug;S3;S3;;S;;;8503000;Zürich HB;;;;01.10.2026 06:04;01.10.2026 06:04:00;REAL;;ch:1:sloid:3000
+3;1.10.2026;fixture:IC1:3:A;85:fixture;TEST;Synthetic operator;Zug;IC1;IC1;;IC;;;8503000;Zürich HB;01.10.2026 06:20;01.10.2026 06:23:00;REAL;;;;;ch:1:sloid:3000
+4;1.10.2026;fixture:IC1:3:B;85:fixture;TEST;Synthetic operator;Zug;S3;S3;;S;;;8503000;Zürich HB;;;;01.10.2026 06:24;01.10.2026 06:24:00;REAL;;ch:1:sloid:3000
+5;1.10.2026;fixture:IC1:6:A;85:fixture;TEST;Synthetic operator;Zug;IC1;IC1;;IC;;;8503000;Zürich HB;01.10.2026 06:40;01.10.2026 06:43:00;REAL;;;;;ch:1:sloid:3000
+6;1.10.2026;fixture:IC1:6:B;85:fixture;TEST;Synthetic operator;Zug;S3;S3;;S;;;8503000;Zürich HB;;;;01.10.2026 06:44;01.10.2026 06:44:00;REAL;;ch:1:sloid:3000
+7;1.10.2026;fixture:IC1:9:A;85:fixture;TEST;Synthetic operator;Zug;IC1;IC1;;IC;;;8503000;Zürich HB;01.10.2026 07:00;01.10.2026 07:00:00;REAL;;;;;ch:1:sloid:3000
+8;1.10.2026;fixture:IC1:9:B;85:fixture;TEST;Synthetic operator;Zug;S3;S3;;S;;;8503000;Zürich HB;;;;01.10.2026 07:04;01.10.2026 07:04:00;REAL;;ch:1:sloid:3000
+9;1.10.2026;fixture:IC1:12:A;85:fixture;TEST;Synthetic operator;Zug;IC1;IC1;;IC;;;8503000;Zürich HB;01.10.2026 07:20;01.10.2026 07:23:00;REAL;;;;;ch:1:sloid:3000
+10;1.10.2026;fixture:IC1:12:B;85:fixture;TEST;Synthetic operator;Zug;S3;S3;;S;;;8503000;Zürich HB;;;;01.10.2026 07:24;01.10.2026 07:24:00;REAL;;ch:1:sloid:3000
+11;1.10.2026;fixture:IC1:15:A;85:fixture;TEST;Synthetic operator;Zug;IC1;IC1;;IC;;;8503000;Zürich HB;01.10.2026 07:40;01.10.2026 07:40:00;REAL;;;;;ch:1:sloid:3000
+12;1.10.2026;fixture:IC1:15:B;85:fixture;TEST;Synthetic operator;Zug;S3;S3;;S;;;8503000;Zürich HB;;;;01.10.2026 07:44;01.10.2026 07:44:00;REAL;;ch:1:sloid:3000
+13;1.10.2026;fixture:IC1:18:A;85:fixture;TEST;Synthetic operator;Zug;IC1;IC1;;IC;;;8503000;Zürich HB;01.10.2026 08:00;01.10.2026 08:00:00;REAL;;;;;ch:1:sloid:3000
+14;1.10.2026;fixture:IC1:18:B;85:fixture;TEST;Synthetic operator;Zug;S3;S3;;S;;;8503000;Zürich HB;;;;01.10.2026 08:04;01.10.2026 08:04:00;REAL;;ch:1:sloid:3000
+15;1.10.2026;fixture:IC1:21:A;85:fixture;TEST;Synthetic operator;Zug;IC1;IC1;;IC;;;8503000;Zürich HB;01.10.2026 08:20;01.10.2026 08:23:00;REAL;;;;;ch:1:sloid:3000
+16;1.10.2026;fixture:IC1:21:B;85:fixture;TEST;Synthetic operator;Zug;S3;S3;;S;;;8503000;Zürich HB;;;;01.10.2026 08:24;01.10.2026 08:24:00;REAL;;ch:1:sloid:3000
+17;1.10.2026;fixture:IC1:24:A;85:fixture;TEST;Synthetic operator;Zug;IC1;IC1;;IC;;;8503000;Zürich HB;01.10.2026 08:40;01.10.2026 08:43:00;REAL;;;;;ch:1:sloid:3000
+18;1.10.2026;fixture:IC1:24:B;85:fixture;TEST;Synthetic operator;Zug;S3;S3;;S;;;8503000;Zürich HB;;;;01.10.2026 08:44;01.10.2026 08:44:00;REAL;;ch:1:sloid:3000
+19;1.10.2026;fixture:S3:0:A;85:fixture;TEST;Synthetic operator;Zug;S3;S3;;S;;;8500218;Olten;01.10.2026 11:00;01.10.2026 11:04:00;REAL;;;;;ch:1:sloid:218
+20;1.10.2026;fixture:S3:0:B;85:fixture;TEST;Synthetic operator;Zug;S9;S9;;S;;;8500218;Olten;;;;01.10.2026 11:01;01.10.2026 11:01:00;REAL;;ch:1:sloid:218
+21;1.10.2026;fixture:S3:3:A;85:fixture;TEST;Synthetic operator;Zug;S3;S3;;S;;;8500218;Olten;01.10.2026 11:20;01.10.2026 11:19:00;REAL;;;;;ch:1:sloid:218
+22;1.10.2026;fixture:S3:3:B;85:fixture;TEST;Synthetic operator;Zug;S9;S9;;S;;;8500218;Olten;;;;01.10.2026 11:35;01.10.2026 11:35:00;REAL;;ch:1:sloid:218
+23;1.10.2026;fixture:forecast:0;85:fixture;TEST;Synthetic operator;Zug;S9;S9;;S;;;8500218;Olten;01.10.2026 19:00;01.10.2026 19:00:00;ESTIMATED;;;;;ch:1:sloid:218
+24;1.10.2026;fixture:pass;85:fixture;TEST;Synthetic operator;Zug;IC1;IC1;;IC;;;8503000;Zürich HB;;;;;;;true;ch:1:sloid:3000
+25;1.10.2026;fixture:order;85:fixture;TEST;Synthetic operator;Zug;S9;S9;;S;;;8500218;Olten;01.10.2026 21:00;01.10.2026 21:00:00;REAL;01.10.2026 21:01;01.10.2026 20:59:00;REAL;;ch:1:sloid:218
