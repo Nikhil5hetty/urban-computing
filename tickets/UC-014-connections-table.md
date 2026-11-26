@@ -38,6 +38,7 @@ gap `planned_dep_B - planned_arr_A` in [2, 15] min (config). Actual gap =
 - [ ] Pair explosion bounded: document pairs per hub per day (expect thousands, not millions)
 - [ ] Built with DuckDB range join; < 15 min for 28 days on the VM
 - [ ] `make data-connections` works (`scripts/build_connections.py`)
+- [ ] Handles both row shapes: separate arrival/departure rows (fixture) and through-trains with arrival and departure on the same row (real data); tested with `tests/factories.stop_events` (PM review of #41)
 
 ## Tests
 `tests/test_connections.py` on the fixture: exact pairs and gaps vs ground_truth.json;
