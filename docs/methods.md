@@ -66,9 +66,38 @@ choice: a delay 2 min short of the margin is not yet felt as a risk.
 (`Vocabulary.late_for_my_transfer(margin_min, spread_min=None)`).
 
 ## 2. Truth of linguistic summaries (UC-021)
-- Protoform 1 "Q x are S": v = μ_Q((1/n) Σ μ_S(x_i)) — Pincay et al. 2021 citing
-  Kacprzyk & Zadrożny 2009. TODO(verify) equation number.
-- Protoform 2 "Q R x are S": v = μ_Q(Σ t(μ_R(x_i), μ_S(x_i)) / Σ μ_R(x_i)). TODO cite.
+
+Implementation: `urban_computing.fuzzy.truth` (NumPy, vectorised). Rows x_1 … x_n, summarizer
+S, optional restriction R (both membership functions from §1), relative quantifier Q.
+
+**Fuzzy proportion** (sigma-count; `fuzzy_proportion`):
+
+- without restriction: p = (1/n) Σ_i μ_S(x_i)
+- with restriction: p = Σ_i t(μ_R(x_i), μ_S(x_i)) / Σ_i μ_R(x_i), with t-norm
+  t(a, b) = a·b (`product`, default, `config/study.yaml` `mining.tnorm`) or min(a, b)
+  (`min`, ablation).
+
+**Truth (validity)**:
+
+- Protoform 1 "Q x are S": v = μ_Q(p), with p as above without R (`truth_simple`). This is
+  the validity used by Pincay et al. 2021, who cite Kacprzyk & Zadrożny 2009.
+  TODO(verify, UC-002): equation numbers in both papers.
+- Protoform 2 "Q R x are S": v = μ_Q(p), with p as above with R (`truth_restricted`).
+  TODO(verify, UC-002): primary citation for the restricted protoform and its t-norm.
+
+**Edge cases (our conventions, not from the sources).**
+
+- Rows with a missing membership (NaN, e.g. the delay of a cancelled train; §1 maps NaN to
+  NaN) are dropped row-wise before aggregating, so n counts complete rows only.
+- p, and therefore v, is NaN when no complete rows remain or Σ μ_R = 0 (empty
+  restriction). NaN is the "not computable" flag; callers test it with `np.isnan`.
+- Memberships outside [0, 1] raise `ValueError`.
+
+**Verification.** Invariant I1: analytical cases (all 0, all 1, 80 % fully late, all 0.5,
+crisp R) agree to < 1e-9. Invariant I2: memberships agree with Simpful 2.12
+`Trapezoidal_MF` to < 1e-6 on 10 000 grid points per word, and truth computed from Simpful
+memberships agrees to < 1e-9 (`tests/test_truth_engine.py`). One evaluation over 10⁷ rows
+takes about 0.02 s on a laptop.
 
 ## 3. Quality measures (UC-022)
 TODO: Hudec coverage C and Qc (hudec2017 / hudec2018), regional measure (hudec2022).
