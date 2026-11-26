@@ -11,8 +11,9 @@ Deterministic: no LLM, no randomness. Rules (ticket UC-041):
 Canonical values: quantifier = vocabulary quantifier word (`most`, `about_half`, ...);
 summarizer = `<attribute>:<word>` (`arrival_delay_minutes:late`); restriction =
 `family=key` pairs joined by `&` in sorted order (`time_band=morning_peak&weekday_group=monday`)
-or None (the question's own segment). Hub and line mentions are not restrictions: they are
-the question's segment.
+or None (the question's own segment). Hub and line mentions and bare time words
+("morning", "evening") are not restrictions: they mean the question's segment. The mapping
+rules are decision D-022 (docs/decisions.md).
 """
 
 from __future__ import annotations
@@ -46,11 +47,42 @@ class Claim(BaseModel):
 # ---------------------------------------------------------------------------- lexicon
 
 
-def load_lexicon(path: Path = LEXICON_PATH) -> dict[str, Any]:
-    """Read config/lexicon.yaml (or `path`) into the dict `parse_output` expects."""
+QuantifierSet = Literal["core", "extended"]
+AMBIGUOUS = "__ambiguous__"  # summarizer phrase that maps to no single vocabulary word
+OWN_SEGMENT = "__own_segment__"  # time word meaning the question's own segment
+
+
+def load_lexicon(
+    path: Path = LEXICON_PATH, quantifier_set: QuantifierSet = "core"
+) -> dict[str, Any]:
+    """Read config/lexicon.yaml (or `path`) into the dict `parse_output` expects.
+
+    `quantifier_set="core"` (default, D-022) maps every quantifier phrase to few /
+    about_half / most. `"extended"` (UC-054 ablation) moves the phrases listed under
+    `quantifiers_extended` from the core words to the extended words (almost_none, ...).
+    """
     import yaml
 
-    return yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    lex = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    return with_quantifier_set(lex, quantifier_set)
+
+
+def with_quantifier_set(lexicon: Mapping[str, Any], quantifier_set: QuantifierSet) -> dict:
+    """Copy of `lexicon` whose `quantifiers` follow `quantifier_set` (see `load_lexicon`)."""
+    if quantifier_set not in ("core", "extended"):
+        raise ValueError(f"quantifier_set must be 'core' or 'extended', got {quantifier_set!r}")
+    lex = dict(lexicon)
+    ext = lex.pop("quantifiers_extended", None) or {}
+    if quantifier_set == "core":
+        return lex
+    moved = {_norm(str(p)) for phrases in ext.values() for p in phrases or []}
+    quants = {
+        w: [p for p in phrases or [] if _norm(str(p)) not in moved]
+        for w, phrases in (lex.get("quantifiers") or {}).items()
+    }
+    quants.update({w: list(phrases or []) for w, phrases in ext.items()})
+    lex["quantifiers"] = quants
+    return lex
 
 
 def _norm(text: str) -> str:
@@ -93,7 +125,7 @@ def _kind(groups: Mapping[str, Any], canonical_keys_match: bool = True) -> _Kind
     canon: dict[str, str] = {}
     for value, phrases in groups.items():
         names = [str(p) for p in phrases or []]
-        if canonical_keys_match:
+        if canonical_keys_match and not str(value).startswith("__"):
             names += [str(value), str(value).split(":")[-1]]
         for p in names:
             canon.setdefault(_norm(p), str(value))
@@ -106,14 +138,17 @@ def _compile(lexicon: Mapping[str, Any]) -> _Lex:
     for key in ("quantifiers", "summarizers"):
         if not isinstance(lexicon.get(key), Mapping) or not lexicon[key]:
             raise ValueError(f"lexicon needs a non-empty `{key}` section")
-    restr: dict[str, list[str]] = {}
+    # sentinel groups first: on a phrase clash the first group wins (setdefault in _kind)
+    restr: dict[str, list[str]] = {OWN_SEGMENT: list(lexicon.get("own_segment_words") or [])}
     for family, values in (lexicon.get("restrictions") or {}).items():
         for key, phrases in (values or {}).items():
-            restr[f"{family}={key}"] = [*(phrases or []), str(key)]
+            restr[f"{family}={key}"] = list(phrases or [])
+    summ: dict[str, Any] = {AMBIGUOUS: list(lexicon.get("ambiguous_summarizers") or [])}
+    summ.update(lexicon["summarizers"])
     neg = sorted((_norm(str(p)) for p in lexicon.get("negation_cues") or [] if p), key=len)[::-1]
     neg_body = "|".join(re.escape(p) if p.startswith("n'") else rf"\b{re.escape(p)}\b" for p in neg)
     return _Lex(
-        summarizers=_kind(lexicon["summarizers"]),
+        summarizers=_kind(summ),
         restrictions=_kind(restr, canonical_keys_match=False),
         quantifiers=_kind(lexicon["quantifiers"]),
         causal=_phrase_regex(lexicon.get("causal_cues") or []),
@@ -151,12 +186,14 @@ class _Scan:
 
 
 def _scan(lex: _Lex, text: str) -> _Scan:
-    """Find phrases in the order summarizer -> restriction -> quantifier, masking each match
-    so that e.g. "a few minutes late" is not also read as the quantifier "a few"."""
+    """Find phrases in the order restriction -> summarizer -> quantifier, masking each match,
+    so "late evening" is not read as the summarizer "late" and "a few minutes late" not as
+    the quantifier "a few". Own-segment time words are dropped from the restrictions."""
     t = f" {text} "
     causal = bool(lex.causal and lex.causal.search(t))
-    summ, t = lex.summarizers.take(t)
     restr, t = lex.restrictions.take(t)
+    restr = [r for r in restr if r != OWN_SEGMENT]
+    summ, t = lex.summarizers.take(t)
     quant, t = lex.quantifiers.take(t)
     numeric = bool(_PROPORTION.search(t))
     negated = bool(lex.negation and lex.negation.search(_norm(t)))
@@ -199,6 +236,7 @@ def _claim_from_sentence(lex: _Lex, qid: str, sentence: str) -> Claim | None:
         return None  # e.g. "Have a good trip." - nothing to check
     restriction, r_ok = _restriction(p.restrictions)
     q, s = _one(p.quantifiers), _one(p.summarizers)
+    s = None if s == AMBIGUOUS else s  # e.g. bare "delayed" (D-022)
     return Claim(
         question_id=qid,
         slot=0,
@@ -253,14 +291,14 @@ def _json_restriction(lex: _Lex, value: Any) -> tuple[str | None, bool]:
     v = value.strip()
     if re.fullmatch(r"[a-z_]+=[a-z_]+(?:&[a-z_]+=[a-z_]+)*", v):  # already canonical
         parts = v.split("&")
-        if not set(parts) <= set(lex.restrictions.canon.values()):
+        if not set(parts) <= set(lex.restrictions.canon.values()) - {OWN_SEGMENT}:
             return None, False
         return _restriction(parts)
     found, rest = lex.restrictions.take(f" {_norm(v)} ")
     leftover = re.sub(r"\b(?:and|on|in|at|the|during|of)\b|[^a-z]", "", rest)
     if not found or leftover:
         return None, False
-    return _restriction(found)
+    return _restriction(r for r in found if r != OWN_SEGMENT)
 
 
 def _json_claims(lex: _Lex, qid: str, obj: dict[str, Any]) -> list[Claim] | None:
@@ -279,6 +317,7 @@ def _json_claims(lex: _Lex, qid: str, obj: dict[str, Any]) -> list[Claim] | None
             continue
         q = _json_word(lex.quantifiers, item.get("quantifier"))
         s = _json_word(lex.summarizers, item.get("summarizer"))
+        s = None if s == AMBIGUOUS else s
         r, r_ok = _json_restriction(lex, item.get("restriction"))
         fields = " ".join(
             str(item.get(k) or "") for k in ("quantifier", "summarizer", "restriction")

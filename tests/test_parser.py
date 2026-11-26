@@ -18,7 +18,7 @@ LEX = load_lexicon()
 
 D = "arrival_delay_minutes"
 C = "connection_slack_minutes"
-MON_AM = "time_band=morning_peak&weekday_group=monday"
+MON = "weekday_group=monday"  # "Monday mornings": bare "mornings" = own segment (D-022)
 
 
 def _j(*claims: dict, text: str = "") -> str:
@@ -41,7 +41,7 @@ EXAMPLES = [
     (
         "j03",
         _j(_q("about half", "slightly late", "Monday mornings")),
-        [("about_half", f"{D}:slightly_late", MON_AM, "ok", "json")],
+        [("about_half", f"{D}:slightly_late", MON, "ok", "json")],
     ),
     (
         "j04",
@@ -98,11 +98,11 @@ EXAMPLES = [
             (None, None, None, "unverifiable_causal", "lexicon"),
         ],
     ),
-    ("j17", _j(_q("almost all", "on time")), [("almost_all", f"{D}:on_time", None, "ok", "json")]),
+    ("j17", _j(_q("almost all", "on time")), [("most", f"{D}:on_time", None, "ok", "json")]),
     (
         "j18",
         _j(_q("most", "on time", "weekend mornings")),
-        [("most", f"{D}:on_time", "time_band=morning_peak&weekday_group=weekend", "ok", "json")],
+        [("most", f"{D}:on_time", "weekday_group=weekend", "ok", "json")],
     ),
     ("j19", _j(), []),  # valid but empty
     (
@@ -125,7 +125,7 @@ EXAMPLES = [
     (
         "t04",
         "Roughly half of the Monday morning trains are slightly late.",
-        [("about_half", f"{D}:slightly_late", MON_AM, "ok", "lexicon")],
+        [("about_half", f"{D}:slightly_late", MON, "ok", "lexicon")],
     ),
     (
         "t05",
@@ -140,7 +140,7 @@ EXAMPLES = [
     (
         "t07",
         "Hardly any connections are missed in the early morning.",
-        [("almost_none", f"{C}:missed", "time_band=early", "ok", "lexicon")],
+        [("few", f"{C}:missed", "time_band=early", "ok", "lexicon")],
     ),
     (
         "t08",
@@ -148,7 +148,7 @@ EXAMPLES = [
         [("most", f"{C}:comfortable", None, "ok", "lexicon")],
     ),
     ("t09", "Most trains are not late.", [("most", f"{D}:late", None, "unverifiable", "lexicon")]),
-    ("t10", "Trains are often delayed.", [(None, f"{D}:late", None, "unverifiable", "lexicon")]),
+    ("t10", "Trains are often delayed.", [(None, None, None, "unverifiable", "lexicon")]),
     (
         "t11",
         "About 18% of connections are missed.",
@@ -285,3 +285,104 @@ def test_custom_lexicon_needs_no_code_change():
 def test_malformed_lexicon_raises(bad):
     with pytest.raises(ValueError):
         parse_output("q", "Most trains are on time.", bad)
+
+
+# --------------------------------------------------------------------- review #40 (D-022)
+
+
+@pytest.mark.parametrize(
+    "sentence,quantifier",
+    [
+        ("Very few trains are late in the morning.", "few"),
+        ("Hardly any connections are missed.", "few"),
+        ("Almost no trains are very late.", "few"),
+        ("Almost all trains are on time.", "most"),
+        ("Nearly all connections are comfortable.", "most"),
+        ("Trains are almost always on time.", "most"),
+    ],
+)
+def test_default_lexicon_maps_only_to_core_quantifiers(sentence, quantifier):
+    (claim,) = parse_output("q", sentence, LEX)
+    assert (claim.quantifier, claim.status) == (quantifier, "ok")
+
+
+def test_core_lexicon_never_yields_extended_words():
+    assert set(LEX["quantifiers"]) == {"few", "about_half", "most"}
+    assert "quantifiers_extended" not in LEX
+    raws = [raw for _, raw, _ in EXAMPLES] + ["Virtually no trains are late."]
+    quants = {c.quantifier for r in raws for c in parse_output("q", r, LEX)}
+    assert quants <= {None, "few", "about_half", "most"}
+
+
+@pytest.mark.parametrize(
+    "sentence,quantifier",
+    [
+        ("Very few trains are late.", "almost_none"),
+        ("Hardly any connections are missed.", "almost_none"),
+        ("Almost all trains are on time.", "almost_all"),
+        ("Nearly always the connection is comfortable.", "almost_all"),
+        ("A few trains are late.", "few"),  # unchanged core phrase
+        ("Most trains are late.", "most"),
+    ],
+)
+def test_extended_lexicon_for_ablation(sentence, quantifier):
+    ext = load_lexicon(quantifier_set="extended")
+    (claim,) = parse_output("q", sentence, ext)
+    assert claim.quantifier == quantifier
+    (json_claim,) = parse_output("q", _j(_q("almost all", "late")), ext)
+    assert json_claim.quantifier == "almost_all"
+
+
+def test_bad_quantifier_set_raises():
+    with pytest.raises(ValueError):
+        load_lexicon(quantifier_set="all")  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "raw,summarizer",
+    [
+        ("Most morning trains are delayed.", None),
+        ("Most trains run behind schedule.", None),
+        ("Most trains have delays.", None),
+        (_j(_q("most", "delayed")), None),
+        ("Most trains are slightly delayed.", f"{D}:slightly_late"),
+        ("Few trains are badly delayed.", f"{D}:very_late"),
+        ("Few trains are severely delayed.", f"{D}:very_late"),
+        ("Most trains are late.", f"{D}:late"),
+    ],
+)
+def test_bare_delayed_is_ambiguous_qualified_forms_map(raw, summarizer):
+    (claim,) = parse_output("q", raw, LEX)
+    assert claim.summarizer == summarizer
+    assert claim.status == ("ok" if summarizer else "unverifiable")
+
+
+@pytest.mark.parametrize(
+    "raw,restriction",
+    [
+        ("Most evening trains are on time.", None),
+        ("Most morning trains are on time.", None),
+        ("In the mornings most trains are on time.", None),
+        ("At rush hour most trains are on time.", None),
+        (_j(_q("most", "on time", "evening")), None),
+        (_j(_q("most", "on time", "Monday mornings")), "weekday_group=monday"),
+        ("Most trains in the evening peak are on time.", "time_band=evening_peak"),
+        ("Most trains in the morning rush hour are on time.", "time_band=morning_peak"),
+        ("Most trains in the early morning are on time.", "time_band=early"),
+        ("Most trains in the late evening are on time.", "time_band=evening"),
+        ("Most trains at night are on time.", "time_band=night"),
+    ],
+)
+def test_bare_time_words_mean_own_segment(raw, restriction):
+    (claim,) = parse_output("q", raw, LEX)
+    assert (claim.restriction, claim.status) == (restriction, "ok")
+    # "late evening" is a restriction, not the summarizer "late"
+    assert claim.summarizer == f"{D}:on_time"
+
+
+def test_decision_d022_is_proposed():
+    rows = [
+        ln for ln in (ROOT / "docs" / "decisions.md").read_text().splitlines()
+        if ln.startswith("| D-022 ")
+    ]  # fmt: skip
+    assert len(rows) == 1 and "| proposed |" in rows[0]
