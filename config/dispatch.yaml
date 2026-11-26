@@ -1,0 +1,8 @@
+# Auto-dispatch switch and caps (read by scripts/dispatch.py in .github/workflows/dispatch.yml).
+# Flip `enabled` to true in a commit to main once the secrets exist (docs/ORCHESTRATION.md).
+# Emergency stop without a commit: set repo variable DISPATCH_ENABLED=false.
+enabled: false
+caps:
+  total: 3
+  claude: 1   # Claude Pro usage limits are tight
+  codex: 2

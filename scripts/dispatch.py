@@ -35,6 +35,22 @@ import tickets as tk  # noqa: E402
 ROOT = Path(__file__).resolve().parents[1]
 MAP_PATH = ROOT / "tickets" / "ISSUE_MAP.json"
 PROMPT_PATH = ROOT / ".github" / "agent-prompt.md"
+CONFIG_PATH = ROOT / "config" / "dispatch.yaml"
+
+
+def load_config() -> dict:
+    import yaml
+
+    cfg = yaml.safe_load(CONFIG_PATH.read_text()) if CONFIG_PATH.exists() else {}
+    caps = cfg.get("caps") or {}
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "total": int(os.environ.get("DISPATCH_CAP") or caps.get("total", 3)),
+        "claude": int(os.environ.get("DISPATCH_CAP_CLAUDE") or caps.get("claude", 1)),
+        "codex": int(os.environ.get("DISPATCH_CAP_CODEX") or caps.get("codex", 2)),
+    }
+
+
 STATE_LABELS = ("agent:running", "agent:review", "agent:failed")
 AGENT_NAMES = ("claude", "codex")
 
@@ -257,6 +273,17 @@ def cmd_plan(args: argparse.Namespace) -> int:
     if errs:
         print("\n".join(errs), file=sys.stderr)
         return 1
+    cfg = load_config()
+    cap_total = args.cap_total if args.cap_total is not None else cfg["total"]
+    cap_claude = args.cap_claude if args.cap_claude is not None else cfg["claude"]
+    cap_codex = args.cap_codex if args.cap_codex is not None else cfg["codex"]
+    if not cfg["enabled"] and not args.dry_run:
+        print("dispatch disabled in config/dispatch.yaml (enabled: false); nothing started")
+        if args.output == "github":
+            with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+                for a in AGENT_NAMES:
+                    fh.write(f"{a}_matrix=[]\nhas_{a}=false\n")
+        return 0
     issue_map = load_map()
     if args.dry_run:
         if not issue_map:
@@ -269,8 +296,8 @@ def cmd_plan(args: argparse.Namespace) -> int:
         tickets,
         state,
         issue_map,
-        cap_total=args.cap_total,
-        cap_agent={"claude": args.cap_claude, "codex": args.cap_codex},
+        cap_total=cap_total,
+        cap_agent={"claude": cap_claude, "codex": cap_codex},
     )
     if args.mark and not args.dry_run:
         ensure_state_labels()
@@ -395,9 +422,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--mark", action="store_true", help="label + comment the picked issues")
     p.add_argument("--run-url", default="")
     p.add_argument("--output", choices=["text", "github"], default="text")
-    p.add_argument("--cap-total", type=int, default=int(os.environ.get("DISPATCH_CAP", 3)))
-    p.add_argument("--cap-claude", type=int, default=int(os.environ.get("DISPATCH_CAP_CLAUDE", 1)))
-    p.add_argument("--cap-codex", type=int, default=int(os.environ.get("DISPATCH_CAP_CODEX", 2)))
+    p.add_argument("--cap-total", type=int, help="default: config/dispatch.yaml")
+    p.add_argument("--cap-claude", type=int)
+    p.add_argument("--cap-codex", type=int)
     p.set_defaults(fn=cmd_plan)
     q = sub.add_parser("prompt")
     q.add_argument("ticket")

@@ -60,9 +60,9 @@ issue labels: agent:running → agent:review (Claude: PR opened; Codex: PR marke
    pip install uv && uv sync --extra dev
    ```
    Then on any PR, test once by commenting `@codex say hello` to confirm it responds.
-5. **Variables** (Settings → Secrets and variables → Actions → Variables):
-   `DISPATCH_ENABLED=true`. Optional: `DISPATCH_CAP`, `DISPATCH_CAP_CLAUDE`,
-   `DISPATCH_CAP_CODEX`.
+5. **Switch on:** set `enabled: true` in `config/dispatch.yaml` and commit to `main`
+   (caps live in the same file). Emergency stop without a commit: repo variable
+   `DISPATCH_ENABLED=false`.
 6. **Branch protection on `main`** (recommended): require the `ci / check` status and one
    approving review. Agents never merge.
 7. First run: Actions → dispatch → *Run workflow* with `dry_run` ticked; check the plan;
@@ -81,7 +81,7 @@ it into Claude Code (terminal, VM) or the Codex app/CLI. Before you start, add t
   merge. Marking it ready frees the Codex slot on the next dispatch run.
 - A ticket stuck in `agent:failed`: read the comment, fix the ticket text or the cause,
   remove the label → it is picked up on the next run (merge, hourly, or manual).
-- Pause everything: set `DISPATCH_ENABLED=false`.
+- Pause everything: `enabled: false` in config/dispatch.yaml, or variable `DISPATCH_ENABLED=false`.
 - Work a ticket locally instead: add `agent:running` to its issue first so the dispatcher
   skips it; open the PR as usual.
 - Paste PR links into the claude.ai Project; the PM reviews them against the ticket.

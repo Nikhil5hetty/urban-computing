@@ -1,13 +1,14 @@
 # Auto-dispatch ready tickets to Claude Code and Codex — subscription only, no API keys.
 #
-# Turn on:  repo variable DISPATCH_ENABLED=true   (Settings → Secrets and variables → Actions)
+# Turn on:  set `enabled: true` in config/dispatch.yaml (commit to main). Emergency stop:
+#           repo variable DISPATCH_ENABLED=false.
 # Secrets:  DISPATCH_PAT             fine-grained PAT on this repo: Contents RW, Pull requests RW,
 #                                    Issues RW. Pushes branches / opens PRs / posts the @codex
 #                                    comment as you, so CI runs and Codex accepts the request.
 #           CLAUDE_CODE_OAUTH_TOKEN  from `claude setup-token` (Claude Pro/Max subscription)
 # Codex:    no secret. Codex cloud (ChatGPT plan) must be connected to this repo with an
 #           environment whose setup script runs `uv sync --extra dev` (docs/ORCHESTRATION.md).
-# Optional variables: DISPATCH_CAP (3), DISPATCH_CAP_CLAUDE (1), DISPATCH_CAP_CODEX (2)
+# Caps: config/dispatch.yaml (variables DISPATCH_CAP / _CLAUDE / _CODEX override)
 #
 # Humans still review and merge every PR. Merging to main re-runs this workflow, which
 # starts whatever just became ready. See docs/ORCHESTRATION.md.
@@ -34,7 +35,7 @@ permissions:
 
 jobs:
   plan:
-    if: vars.DISPATCH_ENABLED == 'true'
+    if: vars.DISPATCH_ENABLED != 'false'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -47,9 +48,9 @@ jobs:
       has_codex: ${{ steps.plan.outputs.has_codex }}
     env:
       GH_TOKEN: ${{ github.token }}
-      DISPATCH_CAP: ${{ vars.DISPATCH_CAP || 3 }}
-      DISPATCH_CAP_CLAUDE: ${{ vars.DISPATCH_CAP_CLAUDE || 1 }}
-      DISPATCH_CAP_CODEX: ${{ vars.DISPATCH_CAP_CODEX || 2 }}
+      DISPATCH_CAP: ${{ vars.DISPATCH_CAP }}
+      DISPATCH_CAP_CLAUDE: ${{ vars.DISPATCH_CAP_CLAUDE }}
+      DISPATCH_CAP_CODEX: ${{ vars.DISPATCH_CAP_CODEX }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -161,6 +162,7 @@ jobs:
           ISSUE: ${{ matrix.ticket.issue }}
         run: |
           set -eu
+          if [ -z "$GH_TOKEN" ]; then echo "::error::secret DISPATCH_PAT is missing"; exit 1; fi
           git config user.name "dispatch"
           git config user.email "dispatch@users.noreply.github.com"
           git checkout -b "$BRANCH"
