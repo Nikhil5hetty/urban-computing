@@ -19,7 +19,23 @@ agent tickets are ready at once (vs 3 before).
 `docs/REALDATA_RUNS.md` (Batches A–D, one `make` target per step) and run by Nikhil on the
 VM / UBELIX when convenient.
 
-## 3. Auto-dispatch (`.github/workflows/dispatch.yml`) — subscriptions only
+## 3. How tickets are worked now (D-021)
+
+GitHub Actions dispatch is **off** (workflows disabled, `enabled: false`). Tickets are worked
+by hand, in wave order, one ticket per PR:
+
+```
+python3 scripts/tickets.py waves claude   # Claude lane order; [ready] = all deps merged
+python3 scripts/tickets.py waves codex    # Codex lane order
+make codex-next                           # Codex: next ready Codex ticket -> PR
+```
+
+Claude tickets: in an interactive Claude Code session, pick the first `[ready]` ticket of the
+lowest wave, branch `uc-xxx-slug`, implement, `make check`, PR. A wave is finished when all
+its tickets are merged; then the next wave becomes ready. The sections below describe the
+retired Actions setup and are kept for reference.
+
+## 3a. Auto-dispatch (`.github/workflows/dispatch.yml`) — retired, see D-021
 
 Runs on your Claude Pro and ChatGPT plans; no API keys.
 

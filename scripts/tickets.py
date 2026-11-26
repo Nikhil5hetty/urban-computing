@@ -5,6 +5,7 @@ Usage:
     python3 scripts/tickets.py validate
     python3 scripts/tickets.py ready [--strict]   # strict = also wait for soft deps
     python3 scripts/tickets.py graph
+    python3 scripts/tickets.py waves [claude|codex]   # work order (D-021)
     python3 scripts/tickets.py set-status UC-021 in-progress
 
 Tickets live in tickets/UC-xxx-*.md with YAML frontmatter (see tickets/README.md).
@@ -198,6 +199,24 @@ def ready(tickets: list[Ticket], strict: bool = False) -> list[Ticket]:
     return out
 
 
+def waves(tickets: list[Ticket]) -> dict[str, int]:
+    """Wave number per ticket: 1 + the highest wave among its hard AND soft dependencies.
+
+    Working wave by wave means every interface a ticket uses is merged before it starts.
+    """
+    by_id = {t.id: t for t in tickets}
+    memo: dict[str, int] = {}
+
+    def level(tid: str) -> int:
+        if tid not in memo:
+            m = by_id[tid].meta
+            deps = list(m.get("depends_on") or []) + list(m.get("soft_depends_on") or [])
+            memo[tid] = 1 + max((level(d) for d in deps if d in by_id), default=0)
+        return memo[tid]
+
+    return {t.id: level(t.id) for t in tickets}
+
+
 def done_ids(tickets: list[Ticket]) -> set[str]:
     return {t.id for t in tickets if t.meta.get("status") == "done"}
 
@@ -241,6 +260,23 @@ def main(argv: list[str]) -> int:
                     soft = ", ".join(t.meta.get("soft_depends_on") or [])
                     soft = f"  ~ {soft}" if soft else ""
                     print(f"  {t.id} [{t.meta['status']}] {t.meta['title']}  <- {deps}{soft}")
+        return 0
+    if cmd == "waves":
+        lane = argv[2] if len(argv) > 2 else None
+        w = waves(tickets)
+        strict_ready = {t.id for t in ready(tickets, strict=True)}
+        for n in sorted(set(w.values())):
+            rows = [t for t in tickets if w[t.id] == n]
+            if lane:
+                rows = [t for t in rows if t.meta.get("agent") == lane]
+            if not rows:
+                continue
+            print(f"Wave {n}")
+            for t in rows:
+                m = t.meta
+                who = m["agent"] if m.get("owner") == "agent" else m.get("owner")
+                mark = "ready" if t.id in strict_ready else m["status"]
+                print(f"  {t.id} [{mark}] ({who}, {m.get('estimate_h')} h) {m['title']}")
         return 0
     if cmd == "set-status" and len(argv) == 4:
         print(set_status(tickets, argv[2], argv[3]))

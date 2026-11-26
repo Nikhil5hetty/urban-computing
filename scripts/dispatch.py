@@ -105,6 +105,7 @@ def select(
     issue_map: dict,
     cap_total: int = 4,
     cap_agent: dict[str, int] | None = None,
+    strict: bool = False,
 ) -> list[Pick]:
     """Pure selection logic (unit-tested): setup first, then critical path, milestone, id."""
     cap_agent = cap_agent or {"claude": 2, "codex": 2}
@@ -117,7 +118,7 @@ def select(
     order = list(tk.MILESTONES)
     candidates = [
         t
-        for t in tk.ready(tickets)
+        for t in tk.ready(tickets, strict=strict)
         if t.meta.get("owner") == "agent" and t.id not in blocked and t.id in issue_map
     ]
     candidates.sort(

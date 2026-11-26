@@ -10,8 +10,8 @@ docs/ORCHESTRATION.md). Runs on your machine with your ChatGPT login (`codex log
     python3 scripts/codex_local.py --ticket UC-004    # a specific ready ticket
 
 Per ticket:
- 1. Pick the next ready ticket for Codex (agent: codex or any) from origin/main, using the
-    same selection, labels and caps as scripts/dispatch.py (one Codex ticket at a time).
+ 1. Pick the next ready ticket for Codex (agent: codex) from origin/main in wave order
+    (hard AND soft dependencies merged; `tickets.py waves codex`), one ticket at a time.
  2. Create a git worktree on branch uc-xxx-slug from origin/main (your checkout is not
     touched), commit `status: in-progress`, run `uv sync --extra dev`.
  3. Run `codex exec` in that worktree (workspace-write sandbox, no network, no git).
@@ -137,6 +137,7 @@ def pick_next(only: str | None) -> tuple[dispatch.Pick | None, tk.Ticket | None,
         issue_map,
         cap_total=len(state.running) + 1,
         cap_agent={"claude": 0, "codex": 1},
+        strict=True,  # D-021: wave order, soft dependencies merged first
     )
     if not picks:
         return None, None, "nothing ready for Codex"
