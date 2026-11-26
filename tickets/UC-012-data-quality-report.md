@@ -34,6 +34,7 @@ fuzzy analysis. This report becomes the data section of the paper.
 - [ ] Operators with < 50% REAL coverage are listed (they bias SRQ1 if kept)
 - [ ] Report generation is deterministic and takes < 10 min for 28 days on the VM
 - [ ] `make data-quality` works (`scripts/data_quality.py`)
+- [ ] Register invariant I5 with `@registry.invariant("I5")` in a module listed in `registry.EXPERIMENT_MODULES` (sample mode uses the fixture); without it the runner blocks every verdict (PM review of #44)
 
 ## Tests
 `tests/test_data_quality.py` on the fixture (known anomaly counts from ground_truth.json).

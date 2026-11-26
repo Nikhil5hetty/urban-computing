@@ -41,6 +41,7 @@ core: encoder (data → fuzzy words) → engine (quantified truth) → decoder (
 - [ ] Fix the fallback note in `Answer.to_text()` (`assistant/contract.py`): it says "no matching connections were found", but the fallback triggers when there are fewer than 20; word it as too few matching connections (PM review of #38). Only that line of contract.py may change
 - [ ] Cancellations count as missed: connections with `b_cancelled = true` (actual gap NaN) are encoded as μ_missed = 1, μ_tight = μ_comfortable = 0 before calling the truth engine (which drops NaN rows); a test shows that cancellations raise p_miss (PM review of #39)
 - [ ] Same cancellation convention as the checkers: `b_cancelled` → slack −∞ (μ_missed = 1) (PM review of #43)
+- [ ] Register invariant I4 with `@registry.invariant("I4")` in a module listed in `registry.EXPERIMENT_MODULES` (e.g. `urban_computing.evaluation.invariants`); without it the runner blocks every verdict (PM review of #44)
 
 ## Tests
 `tests/test_engine.py`: monotonicity, margin effect, I4 checker on fixture, small-n fallback.
