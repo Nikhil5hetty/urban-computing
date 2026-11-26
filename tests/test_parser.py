@@ -380,9 +380,10 @@ def test_bare_time_words_mean_own_segment(raw, restriction):
     assert claim.summarizer == f"{D}:on_time"
 
 
-def test_decision_d022_is_proposed():
+def test_decision_d022_is_logged():
     rows = [
         ln for ln in (ROOT / "docs" / "decisions.md").read_text().splitlines()
         if ln.startswith("| D-022 ")
     ]  # fmt: skip
-    assert len(rows) == 1 and "| proposed |" in rows[0]
+    # Logged once; the PM may move it from proposed to accepted without breaking this test.
+    assert len(rows) == 1 and ("| proposed |" in rows[0] or "| accepted |" in rows[0])
