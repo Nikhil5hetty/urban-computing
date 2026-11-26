@@ -3,7 +3,7 @@ id: UC-004
 title: Synthetic Ist-Daten fixture generator with known ground truth
 epic: setup
 milestone: M1
-status: in-progress
+status: done
 owner: agent
 estimate_h: 2
 depends_on: []        # hard: needs merged code
