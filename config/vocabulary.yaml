@@ -1,7 +1,7 @@
 # Linguistic vocabulary (the CWW "codebook"). Trapezoids are [a, b, c, d]:
 # membership rises from 0 at a to 1 at b, stays 1 until c, falls to 0 at d.
-# Use null for an open shoulder (-inf / +inf). DRAFT values: UC-020 finalises and
-# justifies each breakpoint in docs/methods.md. Any later change = decision log entry.
+# Use null for an open shoulder (-inf / +inf). Final values (UC-020); each breakpoint is
+# justified in docs/methods.md §1. Any later change = decision log entry.
 
 summarizers:
   arrival_delay_minutes:          # attribute: actual - planned arrival, minutes

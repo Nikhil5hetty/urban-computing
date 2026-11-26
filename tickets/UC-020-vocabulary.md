@@ -3,7 +3,7 @@ id: UC-020
 title: Fuzzy vocabulary module (membership functions from config)
 epic: fuzzy
 milestone: M1
-status: in-progress
+status: done
 owner: agent
 estimate_h: 2
 depends_on: []        # hard: needs merged code
