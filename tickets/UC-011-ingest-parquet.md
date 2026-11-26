@@ -3,7 +3,7 @@ id: UC-011
 title: Ingest raw CSV to validated Parquet with DuckDB
 epic: data
 milestone: M1
-status: todo
+status: done
 owner: agent
 estimate_h: 3
 depends_on: [UC-004]        # hard: needs merged code

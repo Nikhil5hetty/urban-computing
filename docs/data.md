@@ -70,3 +70,36 @@ Downloads are staged outside `data/raw/` and published as read-only files. A rer
 reuses files that match the manifest. A checksum mismatch stops the run and identifies
 the existing file for review. The manifest records the direct
 [service-point CSV URL](https://data.opentransportdata.swiss/dataset/39e5f264-257a-4f3f-bccc-5322c37058c5/resource/38ae9c04-05e4-4420-8c56-250ac6f4eb2f/download/actual-date-swiss-service-point.csv).
+
+## 5. Daily CSV ingestion (UC-011)
+
+`make data-ingest` reads the case-insensitive `.csv` entries in `data.raw_dir` from
+`config/study.yaml`, ignores the ZIP, and writes one file per operating day under
+`data.interim_dir/ist/`. Each CSV record becomes one row in the frozen `STOP_EVENTS`
+schema, with its original filename and zero-based record index. The CSV columns are
+bound by name. The leading `_id` is optional, and an absent `SLOID` maps to null.
+BPUIC and SLOID are kept as text, including leading zeros.
+
+The importer detects the separator from the header and tries UTF-8 first unless a
+Unicode BOM is present. For other files it tries Windows-1252, then ISO-8859-1. Those
+legacy encodings share many byte values, so the report records the chosen decoder.
+DuckDB streams one day at a time and PyArrow writes bounded batches. Parquet stores
+Europe/Zurich timezone metadata. Empty flags become false and empty forecast statuses
+become `FORECAST`. Invalid nonblank timestamps become null. Missing required headers and
+malformed CSV records fail ingestion.
+
+`data/interim/ingest_report.json` contains library versions and a `files` array with row
+counts, separator, encoding, parse-failure counts by output column, and normalized
+status counts keyed as `column:status`.
+
+### First real-day header comparison
+
+```sh
+uv run --locked --extra dev pytest -m realdata -s tests/test_ingest.py
+make data-ingest
+```
+
+The smoke test compares the first local daily CSV header to the UC-004 fixture, prints
+the field-by-field diff, and verifies the written row count against a separate CSV
+record count. **TODO(verify)** Record the observed header diff and detected separator
+and encoding here during real-data Batch A.
