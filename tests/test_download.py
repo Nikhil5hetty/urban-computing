@@ -26,7 +26,7 @@ def source(monkeypatch):
         if url.endswith(".zip"):
             with ZipFile(target, "w") as bundle:
                 bundle.writestr("2026-10-11_IstDaten.csv", "fixture day 11\n")
-                bundle.writestr("2026-10-12_istdaten.csv", "fixture day 12\n")
+                bundle.writestr("2026-10-12_iStDaTeN.CsV", "fixture day 12\n")
                 bundle.writestr("2026-10-29_IstDaten.csv", "outside study range\n")
         else:
             target.write_bytes(b"service points\n")
@@ -52,7 +52,7 @@ def test_download_and_resume(tmp_path, source):
     files = {entry["path"]: entry for entry in json.loads(original)["files"]}
     assert set(files) == {
         "raw/ist-daten/2026-10-11_IstDaten.csv",
-        "raw/ist-daten/2026-10-12_istdaten.csv",
+        "raw/ist-daten/2026-10-12_iStDaTeN.CsV",
         "raw/ist-daten/ist-daten-v2-2026-10.zip",
         "raw/service-points/actual-date-swiss-service-point.csv",
     }
@@ -89,6 +89,19 @@ def test_missing_zip_member_publishes_no_raw_files(tmp_path, source):
     with pytest.raises(ValueError, match="Missing archive members"):
         download.download_ist_daten(date(2026, 10, 10), _END, raw)
     assert len(source) == 1
+    assert not raw.exists()
+
+
+def test_duplicate_day_with_different_case_is_rejected(tmp_path, monkeypatch):
+    def fake_fetch(url, target):
+        with ZipFile(target, "w") as bundle:
+            bundle.writestr("nested/2026-10-11_ISTDATEN.CSV", "first")
+            bundle.writestr("2026-10-11_IstDaten.csv", "duplicate")
+
+    monkeypatch.setattr(download, "_fetch", fake_fetch)
+    raw = tmp_path / "raw"
+    with pytest.raises(ValueError, match="Duplicate archive member"):
+        download.download_ist_daten(_START, _START, raw)
     assert not raw.exists()
 
 

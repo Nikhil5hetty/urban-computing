@@ -26,11 +26,6 @@ def _archive_url(month: str) -> str:
     return f"{_ARCHIVE}/{month[:4]}/ist-daten-v2-{month}.zip"
 
 
-def _daily_name(day: date) -> str:
-    suffix = "istdaten" if day == date(2026, 10, 12) else "IstDaten"
-    return f"{day.isoformat()}_{suffix}.csv"
-
-
 def _fetch(url: str, target: Path) -> None:
     with urlopen(url, timeout=120) as response, target.open("xb") as output:
         shutil.copyfileobj(response, output, _BUFFER_BYTES)
@@ -87,28 +82,28 @@ def _publish(staged: Path, target: Path, expected: dict | None) -> None:
 def download_ist_daten(start: date, end: date, raw_dir: Path, dry_run: bool = False) -> list[Path]:
     """Download inclusive daily CSVs and their ZIPs into raw_dir; return the CSV paths.
 
-    A dry run prints one archive URL per month and returns the planned paths.
+    A dry run prints one archive URL per month and returns canonical lookup paths.
+    Downloads preserve the actual ZIP member basename, including its original casing.
     """
     if end < start:
         raise ValueError("Period end must be on or after its start")
-    months: dict[str, list[Path]] = {}
+    directory = raw_dir / "ist-daten"
+    months: dict[str, list[str]] = {}
     for offset in range((end - start).days + 1):
         day = start + timedelta(days=offset)
-        months.setdefault(day.isoformat()[:7], []).append(raw_dir / "ist-daten" / _daily_name(day))
+        months.setdefault(day.isoformat()[:7], []).append(f"{day.isoformat()}_istdaten.csv")
     if dry_run:
         for month in months:
             print(_archive_url(month))
-        return [path for paths in months.values() for path in paths]
+        return [directory / name for names in months.values() for name in names]
 
     data_dir = raw_dir.parent
     entries = _entries(data_dir / "MANIFEST.json")
-    for month, paths in months.items():
+    downloaded = []
+    for month, names in months.items():
         url = _archive_url(month)
-        archive = raw_dir / "ist-daten" / url.rsplit("/", 1)[-1]
+        archive = directory / url.rsplit("/", 1)[-1]
         have_archive = _verified(archive, data_dir, entries)
-        missing = [path for path in paths if not _verified(path, data_dir, entries)]
-        if have_archive and not missing:
-            continue
         data_dir.mkdir(parents=True, exist_ok=True)
         with TemporaryDirectory(prefix=".ist-daten-", dir=data_dir) as tmp:
             staging = Path(tmp)
@@ -116,22 +111,25 @@ def download_ist_daten(start: date, end: date, raw_dir: Path, dry_run: bool = Fa
             if not have_archive:
                 _fetch(url, zip_path)
             with ZipFile(zip_path) as bundle:
-                wanted = {path.name for path in paths}
+                wanted = set(names)
                 members = {}
                 for member in bundle.infolist():
-                    name = PurePosixPath(member.filename).name
-                    if name in wanted and not member.is_dir():
-                        if name in members:
-                            raise ValueError(f"Duplicate archive member: {name}")
-                        members[name] = member
+                    key = PurePosixPath(member.filename).name.lower()
+                    if key in wanted and not member.is_dir():
+                        if key in members:
+                            raise ValueError(f"Duplicate archive member: {key}")
+                        members[key] = member
                 if absent := wanted - members.keys():
                     raise ValueError(f"Missing archive members: {', '.join(sorted(absent))}")
-                for path in missing:
-                    # Write only the filenames selected by the requested period.
-                    with (
-                        bundle.open(members[path.name]) as src,
-                        (staging / path.name).open("xb") as dst,
-                    ):
+                missing = []
+                for name in names:
+                    member = members[name]
+                    path = directory / PurePosixPath(member.filename).name
+                    downloaded.append(path)
+                    if _verified(path, data_dir, entries):
+                        continue
+                    missing.append(path)
+                    with bundle.open(member) as src, (staging / path.name).open("xb") as dst:
                         shutil.copyfileobj(src, dst, _BUFFER_BYTES)
             if not have_archive:
                 _publish(zip_path, archive, entries.get(archive.relative_to(data_dir).as_posix()))
@@ -139,7 +137,7 @@ def download_ist_daten(start: date, end: date, raw_dir: Path, dry_run: bool = Fa
                 _publish(
                     staging / path.name, path, entries.get(path.relative_to(data_dir).as_posix())
                 )
-    return [path for paths in months.values() for path in paths]
+    return downloaded
 
 
 def download_service_points(raw_dir: Path, dry_run: bool = False) -> Path:
@@ -169,7 +167,7 @@ def write_manifest(files: list[Path], manifest_path: Path) -> None:
     # Preserve prior periods and include the monthly ZIPs corresponding to daily CSVs.
     selected = {path.resolve() for path in files}
     for path in files:
-        if path.suffix == ".csv" and path.parent.name == "ist-daten":
+        if path.suffix.lower() == ".csv" and path.parent.name == "ist-daten":
             archive = path.with_name(f"ist-daten-v2-{path.name[:7]}.zip")
             if archive.is_file():
                 selected.add(archive.resolve())
