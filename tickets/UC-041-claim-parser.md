@@ -3,7 +3,7 @@ id: UC-041
 title: Parse LLM output into checkable claims
 epic: llm
 milestone: M2
-status: todo
+status: in-progress
 owner: agent
 estimate_h: 2
 depends_on: []        # hard: needs merged code
