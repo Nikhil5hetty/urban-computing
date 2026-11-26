@@ -1,0 +1,121 @@
+# PRE-REGISTERED hypotheses. Frozen at the commit that adds this file (26 Nov 2026).
+# Agents MUST NOT edit thresholds. If a definition turns out to be unworkable, open a
+# decision proposal (docs/decisions.md, status: proposed) and report the change as a
+# deviation in the paper. The project runner (UC-053) writes one verdict per entry:
+# supported | not_supported | inconclusive.
+
+main_rq: >
+  Can fuzzy linguistic summaries serve as the explainable core of a citizen-facing
+  assistant that answers questions about the reliability of Swiss public-transport trips?
+
+hypotheses:
+  # SRQ1 "Is the answer about my trip?" (coverage and regional quality)
+  - id: H1a
+    rq: SRQ1
+    statement: >
+      A non-trivial share of restricted summaries that pass the Pincay et al. validity
+      threshold (v >= 0.6) fail Hudec's coverage condition (C < 0.5).
+    metric: share_valid_but_low_coverage
+    unit: restricted summaries over all segments, both halves pooled
+    test: proportion with Wilson 95% CI
+    supported_if: "point >= 0.10 and ci_low > 0.02"
+    not_supported_if: "point < 0.02"
+    ticket: UC-050
+
+  - id: H1b
+    rq: SRQ1
+    statement: >
+      Network-wide summaries mask local differences: at least one operator, region or
+      line has a valid local summary whose quantifier differs from the valid network-wide
+      summary for the same summarizer, and this holds in both halves of the period.
+    metric: n_stable_masking_cases
+    test: count + listed examples
+    supported_if: "value >= 1"
+    not_supported_if: "value == 0"
+    ticket: UC-050
+
+  - id: H1c
+    rq: SRQ1
+    statement: Ranking summaries by quality Qc instead of validity v changes the top-20.
+    metric: kendall_tau_top20
+    test: Kendall tau with permutation p-value
+    supported_if: "point < 0.8"
+    not_supported_if: "point >= 0.95"
+    ticket: UC-050
+
+  # SRQ2 "At risk for whom?" (crisp official view vs perception-aware view)
+  - id: H2a
+    rq: SRQ2
+    statement: >
+      For hub connection types, the crisp verdict (SBB 3-minute rule, crisp quantifier)
+      and the perception-aware fuzzy verdict (passenger's transfer margin) give a
+      different decision word for a non-trivial share of (connection type, margin) cells.
+    metric: verdict_flip_rate
+    test: proportion with Wilson 95% CI
+    supported_if: "point >= 0.10 and ci_low > 0.02"
+    not_supported_if: "point < 0.02"
+    ticket: UC-051
+
+  - id: H2b
+    rq: SRQ2
+    statement: Flips concentrate on short margins (<= 4 min) compared to long (>= 6 min).
+    metric: flip_rate_short_minus_long
+    test: Fisher exact test, two-sided
+    supported_if: "point > 0 and p < 0.05"
+    not_supported_if: "point <= 0 or p >= 0.05"
+    ticket: UC-051
+
+  # SRQ3 "Can I trust the chatbot?" (LLM claims vs crisp and fuzzy checkers)
+  - id: H3a
+    rq: SRQ3
+    statement: >
+      Given only summary statistics, the LLM writes quantified claims of which a
+      substantial share is fuzzily false (truth < 0.5).
+    metric: false_share_stats_only
+    test: proportion with Wilson 95% CI (parsable claims only; unverifiable rate reported)
+    supported_if: "point >= 0.20"
+    not_supported_if: "point < 0.05"
+    ticket: UC-052
+
+  - id: H3b
+    rq: SRQ3
+    statement: Fuzzy-grounded prompting lowers the false share versus stats-only.
+    metric: false_share_difference
+    test: McNemar (claim slots paired by question) + Wilcoxon on per-question mean truth
+    supported_if: "point < 0 and p < 0.05"
+    not_supported_if: "p >= 0.05"
+    ticket: UC-052
+
+  - id: H3c
+    rq: SRQ3
+    statement: >
+      A crisp checker (Stat-to-Text style) and the fuzzy checker disagree on a
+      non-trivial share of LLM claims (borderline cases).
+    metric: checker_disagreement_rate
+    test: proportion with Wilson 95% CI
+    supported_if: "point >= 0.10 and ci_low > 0.02"
+    not_supported_if: "point < 0.02"
+    ticket: UC-052
+
+# Invariants: correctness gates, not hypotheses. Any failure blocks the paper numbers.
+invariants:
+  - id: I1
+    statement: Truth engine equals analytical values on synthetic data (abs err < 1e-9).
+    ticket: UC-021
+  - id: I2
+    statement: NumPy engine and Simpful agree on membership degrees (abs err < 1e-6).
+    ticket: UC-021
+  - id: I3
+    statement: Raw file SHA-256 checksums equal data/MANIFEST.json.
+    ticket: UC-010
+  - id: I4
+    statement: 100% of assistant explanation sentences recompute to their stated truth.
+    ticket: UC-031
+  - id: I5
+    statement: >
+      Sanity: crisp share of REAL train arrivals with delay < 3 min lies in [0.80, 0.99]
+      (SBB reports about 94% for 2025; scope differs, order of magnitude only).
+    ticket: UC-012
+  - id: I6
+    statement: Every number in paper/ comes from results/results.json via paper/numbers.tex.
+    ticket: UC-070

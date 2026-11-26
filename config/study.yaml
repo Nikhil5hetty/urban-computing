@@ -1,0 +1,63 @@
+# Study configuration. Changing a value here is a decision: log it in docs/decisions.md.
+study:
+  name: urban-computing
+  seed: 20261126
+
+data:
+  source: opentransportdata.swiss Ist-Daten v2 (actual data)
+  licence_note: "Open use. Must provide the source. (opentransportdata.swiss)"
+  # 28 consecutive operating days from the October 2026 monthly archive (D-005).
+  period:
+    start: 2026-10-01
+    end: 2026-10-28
+  # Two disjoint halves used for stability checks (H1b).
+  halves:
+    first:  [2026-10-01, 2026-10-14]
+    second: [2026-10-15, 2026-10-28]
+  raw_dir: data/raw/ist-daten
+  service_points_dir: data/raw/service-points
+  interim_dir: data/interim
+  processed_dir: data/processed
+  # Only REAL times count as measured (D-006). ESTIMATED/FORECAST/UNKNOWN are dropped and
+  # the drop share is reported per operator and product.
+  keep_status: [REAL]
+  scope_products: [Zug]          # PRODUKT_ID values for trains; verify exact strings in UC-012
+  exclude_additional_trips: true # ZUSATZFAHRT_TF
+  exclude_pass_through: true     # DURCHFAHRT_TF
+
+time_bands:   # local time, [start, end)
+  early:        ["04:00", "06:00"]
+  morning_peak: ["06:00", "09:00"]
+  midday:       ["09:00", "16:00"]
+  evening_peak: ["16:00", "19:00"]
+  evening:      ["19:00", "24:00"]
+  night:        ["00:00", "04:00"]
+
+connections:
+  hubs: ["Zürich HB", "Bern", "Olten"]   # match on service-point name/SLOID in UC-014
+  planned_gap_minutes: [2, 15]           # arriving A -> departing B considered a connection
+  min_transfer_minutes_default: 2        # assumption, sensitivity grid below (D-009)
+  min_transfer_sensitivity: [1, 2, 3, 4]
+  user_margins_minutes: [3, 4, 5, 6, 8, 10]   # passenger's planned transfer time (SRQ2)
+
+crisp_baseline:
+  punctual_threshold_minutes: 3     # SBB definition: < 3 min late is punctual (D-007)
+  most_threshold: 0.5               # Stat-to-Text style crisp "most" = more than half (D-012)
+
+mining:
+  beta: 0.6                         # validity threshold from Pincay et al. 2021
+  tnorm: product                    # ablation: min
+  coverage_threshold: 0.5           # Hudec: Qc = 0 if C < 0.5
+
+llm:
+  model_id: swiss-ai/Apertus-8B-Instruct-2509   # verify exact HF id in UC-040
+  temperatures: [0.0, 0.7]
+  seeds: [1, 2, 3]
+  max_new_tokens: 300
+  conditions: [stats_only, fuzzy_grounded]       # query_tool is stretch (UC-043)
+
+evaluation:
+  hypotheses_file: eval/hypotheses.yaml
+  n_questions: 120
+  bootstrap_resamples: 2000
+  alpha: 0.05

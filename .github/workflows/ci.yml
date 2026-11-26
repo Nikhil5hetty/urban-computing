@@ -1,0 +1,25 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - name: Install
+        run: uv sync --extra dev
+      - name: Lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Unit + contract tests (no real data, no GPU)
+        run: uv run pytest -m "not realdata and not gpu"
+      - name: Project evaluation on synthetic sample
+        # Becomes meaningful once UC-053 lands; until then the module may not exist.
+        run: |
+          if [ -f src/urban_computing/evaluation/run.py ]; then make eval-sample; else echo "UC-053 not merged yet"; fi
