@@ -36,6 +36,7 @@ changing any row, and report schema problems.
 - [ ] Re-running on the same input gives identical Parquet content
 - [ ] `make data-ingest` works (`scripts/ingest.py`, defaults from config/study.yaml)
 - [ ] Columns mapped by name, not position; leading `_id` (cookbook example) optional; separator detected. On the first real day, the real header is diffed against `tests/fixtures/ist_sample` and the result is recorded in docs/data.md (PM review of #41)
+- [ ] Raw daily files are discovered case-insensitively (UC-010 keeps original ZIP names, e.g. `2026-10-12_istdaten.csv`, possibly `.CSV`); the ZIP itself is ignored (PM review of #42)
 
 ## Tests
 `tests/test_ingest.py` on the UC-004 fixture: row counts, dtypes, null-to-false, parse of
