@@ -6,7 +6,9 @@ milestone: M1
 status: todo
 owner: agent
 estimate_h: 2
-depends_on: [UC-001]
+depends_on: []        # hard: needs merged code
+soft_depends_on: [UC-001]   # soft: interface exists; integrate when merged
+agent: codex
 touches: [src/urban_computing/data/download.py, scripts/download_data.py, data/MANIFEST.example.json, tests/test_download.py, docs/data.md]
 realdata: true
 ---
@@ -35,6 +37,7 @@ Service points: https://data.opentransportdata.swiss/dataset/service-point-v2
 - [ ] `verify_manifest` returns `[]` on a correct tree and lists a tampered file
 - [ ] `--dry-run` prints URLs without downloading
 - [ ] docs/data.md records the exact archive URL pattern and file names
+- [ ] `make data-download` and `make data-verify` (`--verify` flag) work (docs/REALDATA_RUNS.md A1–A2)
 
 ## Tests
 `tests/test_download.py` (offline: use a temp dir and a fake file to test manifest

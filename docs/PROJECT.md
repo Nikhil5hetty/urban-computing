@@ -73,6 +73,11 @@ data/processed/arrivals.parquet  ──UC-014──►  data/processed/connectio
 
 ## 5. Interfaces (contracts every ticket must respect)
 
+The executable source of truth is code, not this list: table schemas in
+`src/urban_computing/data/schemas.py`, function signatures in the module stubs (guarded by
+`tests/test_interfaces.py`), and `tests/factories.py` to build schema-correct test data.
+Connections are built from STOP_EVENTS (interim), because departures are needed.
+
 - **arrivals.parquet** (UC-013): one row per REAL train arrival at a stop.
   Columns: `operating_day (date)`, `journey_id (str)`, `operator_abbr (str)`,
   `product (str)`, `line (str)`, `stop_id (str)`, `stop_name (str)`, `canton (str|null)`,

@@ -21,6 +21,9 @@ Agents may add `proposed` entries; only the PM/Nikhil set `accepted`.
 | D-014 | 2026-11-26 | accepted | Name in code, UI and paper: "Swiss public-transport assistant"; no SBB branding. | Data covers all operators; avoid implying an official product. |
 | D-015 | 2026-11-26 | accepted | Out of scope: IT2 quantifiers, second LLM, passenger counts, causal delay explanations, multilingual UI. | Scope to 6 Dec. |
 | D-016 | 2026-11-26 | accepted | Status of a ticket lives in its file (`status:` field) and is mirrored on the GitHub Project board; the file wins on conflict. | Agents without GitHub auth can still see status. |
+| D-017 | 2026-11-26 | accepted | Interface-first: all modules exist as stubs with frozen signatures (tests/test_interfaces.py), schemas in data/schemas.py, test data via tests/factories.py. Ticket dependencies split into hard (`depends_on`) and soft (`soft_depends_on`); only hard ones block. | Agents should not wait for upstream code; 13 tickets ready at once instead of 3. |
+| D-018 | 2026-11-26 | accepted | `realdata: true` tickets are done when code + fixture tests merge; real runs are batched in docs/REALDATA_RUNS.md and run by Nikhil. | Downloads, big joins and GPU jobs must not block agents. |
+| D-019 | 2026-11-26 | accepted | Auto-dispatch via GitHub Actions to Claude Code (anthropics/claude-code-action) and Codex (openai/codex-action); caps 2 + 2; setup tickets first, then critical path; humans review and merge every PR; failed tickets are not retried automatically. | User request: keep agents busy; human merge stays the quality gate. |
 
 ## Open questions (for TA / PM)
 

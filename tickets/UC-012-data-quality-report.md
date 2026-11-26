@@ -6,7 +6,9 @@ milestone: M1
 status: todo
 owner: agent
 estimate_h: 2
-depends_on: [UC-011]
+depends_on: [UC-011]        # hard: needs merged code
+soft_depends_on: []   # soft: interface exists; integrate when merged
+agent: codex
 touches: [src/urban_computing/data/quality.py, scripts/data_quality.py, docs/data-quality.md, tests/test_data_quality.py, config/study.yaml]
 realdata: true
 ---
@@ -31,6 +33,7 @@ fuzzy analysis. This report becomes the data section of the paper.
 - [ ] I5 computed and its pass/fail stated at the top of the report
 - [ ] Operators with < 50% REAL coverage are listed (they bias SRQ1 if kept)
 - [ ] Report generation is deterministic and takes < 10 min for 28 days on the VM
+- [ ] `make data-quality` works (`scripts/data_quality.py`)
 
 ## Tests
 `tests/test_data_quality.py` on the fixture (known anomaly counts from ground_truth.json).

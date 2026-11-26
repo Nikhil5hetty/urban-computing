@@ -6,7 +6,9 @@ milestone: M2
 status: todo
 owner: agent
 estimate_h: 3
-depends_on: [UC-031, UC-032, UC-033, UC-053]
+depends_on: [UC-031, UC-032, UC-053]        # hard: needs merged code
+soft_depends_on: [UC-033]   # soft: interface exists; integrate when merged
+agent: any
 touches: [src/urban_computing/evaluation/srq2.py, tests/test_srq2.py]
 realdata: true
 ---

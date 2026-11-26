@@ -6,7 +6,9 @@ milestone: M4
 status: todo
 owner: nikhil
 estimate_h: 4
-depends_on: [UC-053, UC-060]
+depends_on: [UC-053]        # hard: needs merged code
+soft_depends_on: [UC-060]   # soft: interface exists; integrate when merged
+agent: none
 touches: [slides/]
 realdata: false
 ---

@@ -6,7 +6,9 @@ milestone: M2
 status: todo
 owner: agent
 estimate_h: 2
-depends_on: [UC-041, UC-021]
+depends_on: [UC-020, UC-021]        # hard: needs merged code
+soft_depends_on: [UC-041]   # soft: interface exists; integrate when merged
+agent: any
 touches: [src/urban_computing/llm/checkers.py, tests/test_checkers.py, docs/methods.md]
 realdata: false
 ---

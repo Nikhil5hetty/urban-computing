@@ -3,7 +3,7 @@
 
 Usage:
     python3 scripts/tickets.py validate
-    python3 scripts/tickets.py ready
+    python3 scripts/tickets.py ready [--strict]   # strict = also wait for soft deps
     python3 scripts/tickets.py graph
     python3 scripts/tickets.py set-status UC-021 in-progress
 
@@ -42,6 +42,7 @@ MILESTONES = {
 }
 STATUSES = {"todo", "in-progress", "blocked", "done"}
 OWNERS = {"agent", "nikhil", "pm"}
+AGENTS = {"claude", "codex", "any", "none"}
 REQUIRED = {
     "id": str,
     "title": str,
@@ -51,6 +52,8 @@ REQUIRED = {
     "owner": str,
     "estimate_h": (int, float),
     "depends_on": list,
+    "soft_depends_on": list,
+    "agent": str,
     "touches": list,
     "realdata": bool,
 }
@@ -140,6 +143,13 @@ def validate(tickets: list[Ticket]) -> list[str]:
             errors.append(f"{t.path.name}: unknown status '{m.get('status')}'")
         if m.get("owner") not in OWNERS:
             errors.append(f"{t.path.name}: unknown owner '{m.get('owner')}'")
+        if m.get("agent") not in AGENTS:
+            errors.append(f"{t.path.name}: unknown agent '{m.get('agent')}'")
+        elif (m.get("owner") == "agent") != (m.get("agent") != "none"):
+            errors.append(f"{t.path.name}: agent must be 'none' iff owner is not 'agent'")
+        hard, soft = set(m.get("depends_on") or []), set(m.get("soft_depends_on") or [])
+        if hard & soft:
+            errors.append(f"{t.path.name}: {sorted(hard & soft)} both hard and soft")
         for sec in REQUIRED_SECTIONS:
             if sec not in t.body:
                 errors.append(f"{t.path.name}: missing section '{sec}'")
@@ -161,20 +171,35 @@ def validate(tickets: list[Ticket]) -> list[str]:
                 m_dep = order.index(by_id[d].meta.get("milestone", "M1"))
                 if m_dep > m_self:
                     errors.append(f"{tid}: depends on {d} from a later milestone")
+    for t in tickets:
+        for d in t.meta.get("soft_depends_on") or []:
+            if d not in graph:
+                errors.append(f"{t.id}: soft-depends on unknown ticket {d}")
+            if d == t.id:
+                errors.append(f"{t.id}: soft-depends on itself")
     cycle = _find_cycle(graph)
     if cycle:
         errors.append("dependency cycle: " + " -> ".join(cycle))
     return errors
 
 
-def ready(tickets: list[Ticket]) -> list[Ticket]:
+def ready(tickets: list[Ticket], strict: bool = False) -> list[Ticket]:
+    """`todo` tickets whose HARD dependencies are all `done` (soft too if strict)."""
     status = {t.id: t.meta.get("status") for t in tickets}
-    return [
-        t
-        for t in tickets
-        if t.meta.get("status") == "todo"
-        and all(status.get(d) == "done" for d in t.meta.get("depends_on") or [])
-    ]
+    out = []
+    for t in tickets:
+        if t.meta.get("status") != "todo":
+            continue
+        deps = list(t.meta.get("depends_on") or [])
+        if strict:
+            deps += list(t.meta.get("soft_depends_on") or [])
+        if all(status.get(d) == "done" for d in deps):
+            out.append(t)
+    return out
+
+
+def done_ids(tickets: list[Ticket]) -> set[str]:
+    return {t.id for t in tickets if t.meta.get("status") == "done"}
 
 
 def set_status(tickets: list[Ticket], tid: str, new: str) -> Path:
@@ -199,9 +224,13 @@ def main(argv: list[str]) -> int:
         print(f"{len(tickets)} tickets, {len(errs)} errors")
         return 1 if errs else 0
     if cmd == "ready":
-        for t in ready(tickets):
+        strict = "--strict" in argv
+        for t in ready(tickets, strict=strict):
             m = t.meta
-            print(f"{t.id}  [{m['milestone']}/{m['epic']}/{m['owner']}]  {m['title']}")
+            soft = [d for d in m.get("soft_depends_on") or [] if d not in done_ids(tickets)]
+            note = f"  (soft pending: {', '.join(soft)})" if soft else ""
+            tag = f"[{m['milestone']}/{m['epic']}/{m['owner']}:{m['agent']}]"
+            print(f"{t.id}  {tag}  {m['title']}{note}")
         return 0
     if cmd == "graph":
         for ms, (title, due) in MILESTONES.items():
@@ -209,7 +238,9 @@ def main(argv: list[str]) -> int:
             for t in tickets:
                 if t.meta.get("milestone") == ms:
                     deps = ", ".join(t.meta.get("depends_on") or []) or "-"
-                    print(f"  {t.id} [{t.meta['status']}] {t.meta['title']}  <- {deps}")
+                    soft = ", ".join(t.meta.get("soft_depends_on") or [])
+                    soft = f"  ~ {soft}" if soft else ""
+                    print(f"  {t.id} [{t.meta['status']}] {t.meta['title']}  <- {deps}{soft}")
         return 0
     if cmd == "set-status" and len(argv) == 4:
         print(set_status(tickets, argv[2], argv[3]))

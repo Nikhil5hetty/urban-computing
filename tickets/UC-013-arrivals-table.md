@@ -6,7 +6,9 @@ milestone: M1
 status: todo
 owner: agent
 estimate_h: 3
-depends_on: [UC-011, UC-012]
+depends_on: [UC-011]        # hard: needs merged code
+soft_depends_on: [UC-012]   # soft: interface exists; integrate when merged
+agent: codex
 touches: [src/urban_computing/data/arrivals.py, scripts/build_arrivals.py, tests/test_arrivals.py, tests/test_contracts.py]
 realdata: true
 ---
@@ -26,6 +28,7 @@ One row per REAL train arrival at a stop with all attributes needed for restrict
       (< 5% expected for Swiss stops; foreign stops excluded)
 - [ ] `time_band`, `weekday`, `half` derived from config/study.yaml (local time)
 - [ ] Contract test: columns and dtypes equal PROJECT.md §5
+- [ ] `make data-arrivals` works (`scripts/build_arrivals.py`)
 
 ## Tests
 `tests/test_arrivals.py` (fixture: known delays → exact delay_min; band assignment at

@@ -82,20 +82,35 @@ data/                gitignored. raw/ is READ-ONLY.
    the PR description.
 8. **Names.** Say "Swiss public-transport assistant", never "SBB assistant" (the data
    covers all operators; no official branding in the prototype).
-9. **Pure core.** `src/urban_computing/fuzzy/` has no I/O and no pandas/duckdb imports;
+9. **Frozen interfaces.** Function signatures in the module stubs, table schemas in
+   `src/urban_computing/data/schemas.py`, the pydantic contract and `SummaryRecord` are
+   guarded by `tests/test_interfaces.py`. Other agents code against them in parallel.
+   Changing one needs a decision proposal and an update of that test in the same PR.
+10. **Stay in your stub.** A stub raising `NotImplementedError("UC-xxx")` belongs to ticket
+    UC-xxx. Do not implement another ticket's stub; mock it in your tests instead.
+11. **Dependencies.** Only UC-001 commits `uv.lock`. Do not add packages; if you need one,
+    say so in the PR (the PM adds it in a separate change).
+12. **Pure core.** `src/urban_computing/fuzzy/` has no I/O and no pandas/duckdb imports;
    it works on NumPy arrays. Heavy LLM libraries are imported lazily inside `llm/`.
 
 ## 5. How to work a ticket
 
-1. Pick a ticket whose `status: todo` and whose `depends_on` tickets are all `done`
-   (`python3 scripts/tickets.py ready` lists them).
-2. Branch: `uc-XXX-short-slug`. Set the ticket `status: in-progress` in your first commit.
-3. Implement. Write tests first for the acceptance criteria where possible.
-4. Run `make check` (and `make test-realdata` if the ticket says so).
-5. Update docs the ticket names (methods, data, decisions proposals).
-6. Set `status: done` in the ticket file in the same PR. Fill the PR template.
+1. Pick a ticket with `status: todo` whose **hard** `depends_on` tickets are all `done`
+   (`python3 scripts/tickets.py ready`). In automated runs the dispatcher picks for you.
+2. **Soft dependencies** (`soft_depends_on`) are tickets whose code may not exist yet but
+   whose interface does. Code against the stub signatures and build test data with
+   `tests/factories.py`. Mock unimplemented functions with `monkeypatch`. When the soft
+   dependency later merges, your tests must still pass unchanged.
+3. Branch: `uc-XXX-short-slug`. Set the ticket `status: in-progress` in your first commit.
+4. Implement. Write tests first for the acceptance criteria where possible.
+5. Run `make check`. In automated runs without network use `UV_OFFLINE=1 make check`.
+6. **Real data** (`realdata: true`): deliver the code, fixture-based tests and the exact
+   command to run on real data. Do not wait for real data; Nikhil runs the commands in
+   batches from `docs/REALDATA_RUNS.md`. The ticket is `done` when code + tests merge.
+7. Update docs the ticket names (methods, data, decisions proposals).
+8. Set `status: done` in the ticket file in the same PR. Fill the PR template.
    PR title `UC-XXX: <title>`; body contains `Closes #<issue>` (see `tickets/ISSUE_MAP.json`).
-7. Commit messages start with `UC-XXX:`.
+9. Commit messages start with `UC-XXX:`.
 
 If blocked: set `status: blocked`, add a `## Blocker` section to the ticket explaining what
 is missing, and stop. Do not work around a blocker by changing scope.
@@ -118,7 +133,15 @@ make test-realdata  # tests needing data/raw (local / UBELIX)
 make eval-sample    # whole pipeline on synthetic fixture (CI)
 make eval           # whole pipeline on real data -> results/results.json + REPORT.md
 python3 scripts/tickets.py ready|graph|validate
+python3 scripts/dispatch.py plan --dry-run   # what the dispatcher would start next
 ```
+
+## 9. Automated dispatch (see docs/ORCHESTRATION.md)
+
+`.github/workflows/dispatch.yml` starts Claude Code or Codex on ready tickets whenever
+`main` changes. Labels: `agent:running` (in flight), `agent:claude` / `agent:codex`
+(who), `agent:failed` (needs a human; the dispatcher will not retry it). A human merges
+every PR.
 
 ## 8. Environment notes
 

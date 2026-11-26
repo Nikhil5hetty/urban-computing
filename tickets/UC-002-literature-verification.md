@@ -6,7 +6,9 @@ milestone: M1
 status: todo
 owner: pm
 estimate_h: 3
-depends_on: []
+depends_on: []        # hard: needs merged code
+soft_depends_on: []   # soft: interface exists; integrate when merged
+agent: none
 touches: [docs/literature.md, docs/methods.md, paper/references.bib]
 realdata: false
 ---

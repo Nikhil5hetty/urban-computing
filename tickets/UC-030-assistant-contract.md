@@ -6,7 +6,9 @@ milestone: M1
 status: todo
 owner: agent
 estimate_h: 1
-depends_on: [UC-001]
+depends_on: []        # hard: needs merged code
+soft_depends_on: []   # soft: interface exists; integrate when merged
+agent: any
 touches: [src/urban_computing/assistant/contract.py, tests/test_contract_models.py]
 realdata: false
 ---
@@ -16,13 +18,11 @@ Typed request/response models shared by the decision engine, crisp baseline, LLM
 prototype and evaluation.
 
 ## Outputs
-pydantic models:
-- `Question(hub, arr_line|arr_product, dep_line|dep_product|None, time_band, weekday_group,
-  margin_min)` — `weekday_group` in {weekday, monday, friday, weekend, all}
-- `Explanation(sentence, quantifier, summarizer, restriction, truth, coverage, quality, n)`
-- `Answer(question, decision: Literal["safe","at_risk","risky"], explanations: list,
-  crisp_decision, provenance: {period, config_hash, git_sha})`
-- `Answer.to_text()` renders a citizen-facing paragraph (English) from fields only
+The fields of `Question`, `Explanation`, `Provenance` and `Answer` already exist in
+`src/urban_computing/assistant/contract.py` (frozen interface). This ticket adds:
+- validators: `margin_min > 0`; `hub` in config hubs; `time_band` in config time bands;
+  at least one of `arr_line` / `arr_product`
+- `Answer.to_text()` rendering a citizen-facing paragraph (English) from fields only
 
 ## Acceptance criteria
 - [ ] JSON round-trip (model → json → model) is lossless

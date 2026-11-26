@@ -6,7 +6,9 @@ milestone: M2
 status: todo
 owner: agent
 estimate_h: 1
-depends_on: [UC-030, UC-014]
+depends_on: []        # hard: needs merged code
+soft_depends_on: [UC-014, UC-030, UC-013]   # soft: interface exists; integrate when merged
+agent: any
 touches: [src/urban_computing/assistant/crisp.py, tests/test_crisp.py]
 realdata: false
 ---

@@ -6,7 +6,9 @@ milestone: M1
 status: todo
 owner: nikhil
 estimate_h: 1
-depends_on: []
+depends_on: []        # hard: needs merged code
+soft_depends_on: []   # soft: interface exists; integrate when merged
+agent: none
 touches: [docs/decisions.md]
 realdata: false
 ---

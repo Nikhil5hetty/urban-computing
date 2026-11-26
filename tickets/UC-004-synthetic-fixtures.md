@@ -6,7 +6,9 @@ milestone: M1
 status: todo
 owner: agent
 estimate_h: 2
-depends_on: [UC-001]
+depends_on: []        # hard: needs merged code
+soft_depends_on: [UC-001]   # soft: interface exists; integrate when merged
+agent: codex
 touches: [tests/fixtures/, src/urban_computing/data/synthetic.py, tests/test_synthetic.py]
 realdata: false
 ---

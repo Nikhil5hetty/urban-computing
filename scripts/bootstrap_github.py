@@ -75,9 +75,12 @@ def _q(a: str) -> str:
 
 def issue_body(t: tk.Ticket, issue_map: dict) -> str:
     deps = t.meta.get("depends_on") or []
-    dep_links = [f"#{issue_map[d]['number']} ({d})" if d in issue_map else d for d in deps] or [
-        "none"
-    ]
+
+    def link(d: str) -> str:
+        return f"#{issue_map[d]['number']} ({d})" if d in issue_map else d
+
+    dep_links = [link(d) for d in deps] or ["none"]
+    soft_links = [link(d) for d in t.meta.get("soft_depends_on") or []] or ["none"]
     touches = "\n".join(f"- `{p}`" for p in t.meta.get("touches") or [])
     return (
         f"> Spec and status source of truth: `tickets/{t.path.name}` "
@@ -85,7 +88,9 @@ def issue_body(t: tk.Ticket, issue_map: dict) -> str:
         f"**Milestone:** {t.meta['milestone']} · **Epic:** {t.meta['epic']} · "
         f"**Owner:** {t.meta['owner']} · **Estimate:** {t.meta['estimate_h']} h · "
         f"**Needs real data:** {t.meta['realdata']}\n\n"
-        f"**Depends on:** {', '.join(dep_links)}\n\n"
+        f"**Depends on (hard, must be merged):** {', '.join(dep_links)}\n\n"
+        f"**Soft dependencies (code against the interface now):** {', '.join(soft_links)}\n\n"
+        f"**Dispatch to:** {t.meta['agent']}\n\n"
         f"**May touch:**\n{touches}\n\n---\n\n{t.body}\n\n---\n"
         f"Read `AGENTS.md` first. Definition of Done: `docs/evaluation.md` §1.\n"
     )

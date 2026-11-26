@@ -6,7 +6,9 @@ milestone: M3
 status: todo
 owner: agent
 estimate_h: 4
-depends_on: [UC-040]
+depends_on: [UC-040]        # hard: needs merged code
+soft_depends_on: []   # soft: interface exists; integrate when merged
+agent: codex
 touches: [src/urban_computing/llm/query_tool.py, src/urban_computing/llm/prompts.py, tests/test_query_tool.py]
 realdata: true
 ---

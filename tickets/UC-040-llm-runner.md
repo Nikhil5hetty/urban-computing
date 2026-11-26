@@ -6,8 +6,10 @@ milestone: M2
 status: todo
 owner: agent
 estimate_h: 4
-depends_on: [UC-033]
-touches: [src/urban_computing/llm/runner.py, src/urban_computing/llm/prompts.py, slurm/run_llm.sbatch, scripts/run_llm.py, tests/test_prompts.py, docs/methods.md]
+depends_on: []        # hard: needs merged code
+soft_depends_on: [UC-033, UC-030]   # soft: interface exists; integrate when merged
+agent: codex
+touches: [scripts/collect_llm.sh, src/urban_computing/llm/runner.py, src/urban_computing/llm/prompts.py, slurm/run_llm.sbatch, scripts/run_llm.py, tests/test_prompts.py, docs/methods.md]
 realdata: true
 ---
 
@@ -35,6 +37,7 @@ raw output, parse status, timing; `slurm/run_llm.sbatch`.
 - [ ] Runs resume after interruption (skip finished question ids)
 - [ ] `--mock` mode produces deterministic fake outputs for CI and for UC-041/042 tests
 - [ ] Heavy imports only inside functions (CI has no torch)
+- [ ] `scripts/collect_llm.sh` syncs UBELIX outputs to `data/interim/llm/`; `make llm-collect` works
 
 ## Tests
 `tests/test_prompts.py` (rendering, JSON schema in prompt); `@pytest.mark.gpu` smoke test.

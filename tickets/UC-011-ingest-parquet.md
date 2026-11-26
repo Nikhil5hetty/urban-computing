@@ -6,7 +6,9 @@ milestone: M1
 status: todo
 owner: agent
 estimate_h: 3
-depends_on: [UC-010, UC-004]
+depends_on: [UC-004]        # hard: needs merged code
+soft_depends_on: [UC-010]   # soft: interface exists; integrate when merged
+agent: codex
 touches: [src/urban_computing/data/ingest.py, scripts/ingest.py, tests/test_ingest.py, docs/data.md]
 realdata: true
 ---
@@ -32,6 +34,7 @@ changing any row, and report schema problems.
 - [ ] Handles non-zero-padded dates (e.g. `1.10.2026`) and both 7/9-digit BPUIC and SLOID
 - [ ] Runs with bounded memory (DuckDB streaming; never loads a full day into pandas)
 - [ ] Re-running on the same input gives identical Parquet content
+- [ ] `make data-ingest` works (`scripts/ingest.py`, defaults from config/study.yaml)
 
 ## Tests
 `tests/test_ingest.py` on the UC-004 fixture: row counts, dtypes, null-to-false, parse of

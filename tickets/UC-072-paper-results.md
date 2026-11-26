@@ -6,7 +6,9 @@ milestone: M4
 status: todo
 owner: agent
 estimate_h: 4
-depends_on: [UC-050, UC-051, UC-052, UC-071]
+depends_on: [UC-050, UC-051, UC-052, UC-071]        # hard: needs merged code
+soft_depends_on: []   # soft: interface exists; integrate when merged
+agent: claude
 touches: [paper/sections/data.tex, paper/sections/results.tex, paper/sections/discussion.tex, paper/sections/conclusion.tex, paper/sections/genai.tex, paper/main.tex]
 realdata: false
 ---

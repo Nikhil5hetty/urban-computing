@@ -6,7 +6,9 @@ milestone: M2
 status: todo
 owner: agent
 estimate_h: 3
-depends_on: [UC-004, UC-021]
+depends_on: []        # hard: needs merged code
+soft_depends_on: [UC-004, UC-021]   # soft: interface exists; integrate when merged
+agent: codex
 touches: [src/urban_computing/evaluation/run.py, src/urban_computing/evaluation/registry.py, src/urban_computing/evaluation/stats.py, tests/test_runner.py, tests/test_stats.py]
 realdata: false
 ---
@@ -33,6 +35,7 @@ skeleton; experiments register themselves as they land.
 - [ ] results.json schema matches docs/PROJECT.md §5; validated by a test
 - [ ] Wilson / McNemar / Kendall wrappers match reference values (statsmodels/scipy docs
       examples) in tests
+- [ ] `--only <experiment-module>` runs a subset (used by `make ablations`)
 
 ## Tests
 `tests/test_runner.py`, `tests/test_stats.py`.

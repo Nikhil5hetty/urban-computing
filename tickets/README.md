@@ -14,9 +14,11 @@ status** (D-016); the GitHub Project board mirrors it.
 | `status` | `todo`, `in-progress`, `blocked`, `done` |
 | `owner` | `agent` (Codex / Claude Code), `nikhil`, or `pm` |
 | `estimate_h` | rough effort in hours of agent work |
-| `depends_on` | ticket ids that must be `done` first |
+| `depends_on` | **hard** dependencies: ticket ids whose code must be merged (`done`) first |
+| `soft_depends_on` | interface-only dependencies: start now against stubs + `tests/factories.py` |
+| `agent` | who the dispatcher starts: `claude`, `codex`, `any` (balanced), `none` (human) |
 | `touches` | paths the ticket may create/modify (keep PRs inside them) |
-| `realdata` | `true` if acceptance needs data/raw (run on VM/UBELIX) |
+| `realdata` | `true` if the code must also be run on real data; that run is tracked in `docs/REALDATA_RUNS.md` and does not block `done` |
 
 ## Body sections
 
@@ -27,6 +29,7 @@ Tests · Notes / pitfalls.
 
 ```
 python3 scripts/tickets.py validate   # schema, unique ids, deps exist, no cycles
-python3 scripts/tickets.py ready      # todo tickets whose deps are all done
+python3 scripts/tickets.py ready      # todo tickets whose HARD deps are all done
+python3 scripts/tickets.py ready --strict   # also wait for soft deps
 python3 scripts/tickets.py graph      # dependency list per milestone
 ```

@@ -6,7 +6,9 @@ milestone: M1
 status: todo
 owner: agent
 estimate_h: 3
-depends_on: [UC-022]
+depends_on: [UC-020, UC-021]        # hard: needs merged code
+soft_depends_on: [UC-022]   # soft: interface exists; integrate when merged
+agent: claude
 touches: [src/urban_computing/fuzzy/miner.py, src/urban_computing/evaluation/segments.py, scripts/mine_summaries.py, tests/test_miner.py]
 realdata: false
 ---
@@ -29,6 +31,7 @@ records with truth, coverage and Qc.
       arrivals in the morning peak are slightly late")
 - [ ] Segments with n < 30 arrivals are kept but flagged `small_n`
 - [ ] Runtime for all segments of 28 days < 20 min on the VM
+- [ ] `make mine` works
 
 ## Tests
 `tests/test_miner.py`: fixture with known proportions → expected valid set at β = 0.6;

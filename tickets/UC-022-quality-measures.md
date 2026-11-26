@@ -6,7 +6,9 @@ milestone: M1
 status: todo
 owner: agent
 estimate_h: 3
-depends_on: [UC-021, UC-002]
+depends_on: [UC-002]        # hard: needs merged code
+soft_depends_on: [UC-021]   # soft: interface exists; integrate when merged
+agent: claude
 touches: [src/urban_computing/fuzzy/quality.py, tests/test_quality.py, docs/methods.md]
 realdata: false
 ---

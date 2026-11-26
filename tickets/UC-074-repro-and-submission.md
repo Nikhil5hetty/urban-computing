@@ -6,7 +6,9 @@ milestone: M4
 status: todo
 owner: agent
 estimate_h: 2
-depends_on: [UC-072, UC-061, UC-054]
+depends_on: [UC-072, UC-061, UC-054]        # hard: needs merged code
+soft_depends_on: []   # soft: interface exists; integrate when merged
+agent: codex
 touches: [docs/REPRODUCE.md, scripts/package_submission.py]
 realdata: true
 ---

@@ -6,7 +6,9 @@ milestone: M2
 status: todo
 owner: agent
 estimate_h: 4
-depends_on: [UC-030, UC-023, UC-014]
+depends_on: [UC-020, UC-021]        # hard: needs merged code
+soft_depends_on: [UC-023, UC-014, UC-030, UC-022]   # soft: interface exists; integrate when merged
+agent: claude
 touches: [src/urban_computing/assistant/engine.py, tests/test_engine.py, docs/methods.md, config/vocabulary.yaml]
 realdata: false
 ---

@@ -6,7 +6,9 @@ milestone: M3
 status: todo
 owner: agent
 estimate_h: 2
-depends_on: [UC-050, UC-051]
+depends_on: [UC-050, UC-051]        # hard: needs merged code
+soft_depends_on: []   # soft: interface exists; integrate when merged
+agent: any
 touches: [src/urban_computing/evaluation/ablations.py, tests/test_ablations.py]
 realdata: true
 ---

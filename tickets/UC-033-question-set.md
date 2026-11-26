@@ -6,7 +6,9 @@ milestone: M2
 status: todo
 owner: agent
 estimate_h: 2
-depends_on: [UC-031, UC-032]
+depends_on: [UC-031, UC-032]        # hard: needs merged code
+soft_depends_on: [UC-014]   # soft: interface exists; integrate when merged
+agent: any
 touches: [src/urban_computing/evaluation/questions.py, scripts/make_questions.py, eval/questions.jsonl, tests/test_questions.py]
 realdata: true
 ---
@@ -25,6 +27,7 @@ drawn from segments that exist in the data. Used by SRQ2, SRQ3 and the prototype
 - [ ] Same seed → identical file
 - [ ] Contains ≥ 15 borderline questions (fuzzy p_miss within ±0.05 of a decision
       boundary), selected by rule, not by hand
+- [ ] `make questions` works
 
 ## Tests
 `tests/test_questions.py` on the fixture (stratification, determinism).

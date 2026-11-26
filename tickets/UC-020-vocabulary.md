@@ -6,7 +6,9 @@ milestone: M1
 status: todo
 owner: agent
 estimate_h: 2
-depends_on: [UC-001]
+depends_on: []        # hard: needs merged code
+soft_depends_on: []   # soft: interface exists; integrate when merged
+agent: claude
 touches: [src/urban_computing/fuzzy/vocabulary.py, tests/test_vocabulary.py, config/vocabulary.yaml, docs/methods.md]
 realdata: false
 ---

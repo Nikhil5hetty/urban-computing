@@ -41,6 +41,7 @@ packages = ["src/urban_computing"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src", "."]
 addopts = "-q"
 markers = [
     "realdata: needs files in data/raw (skipped in CI)",
@@ -53,4 +54,4 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "N"]
-ignore = ["N802", "N806"]  # allow math-style names like Q, S, R in the fuzzy engine
+ignore = ["N802", "N803", "N806"]  # allow math-style names like Q, S, R in the fuzzy engine
