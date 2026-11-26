@@ -28,6 +28,7 @@ drawn from segments that exist in the data. Used by SRQ2, SRQ3 and the prototype
 - [ ] Contains ≥ 15 borderline questions (fuzzy p_miss within ±0.05 of a decision
       boundary), selected by rule, not by hand
 - [ ] `make questions` works
+- [ ] Hub names and time bands come from `config/study.yaml` (Question validation is exact-match, e.g. "Zürich HB") (PM review of #38)
 
 ## Tests
 `tests/test_questions.py` on the fixture (stratification, determinism).

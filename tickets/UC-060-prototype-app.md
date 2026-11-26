@@ -32,6 +32,7 @@ band, day and their transfer margin, and gets the decision word with the explana
 - [ ] Every number shown comes from the Answer object (render tests)
 - [ ] Footer: "Data: opentransportdata.swiss (Ist-Daten, Oct 2026)"; no SBB branding (D-014)
 - [ ] Screenshots of all 4 views saved to `paper/figures/app_*.png`
+- [ ] Hub names and time bands come from `config/study.yaml` (Question validation is exact-match, e.g. "Zürich HB") (PM review of #38)
 
 ## Tests
 `tests/test_render.py` (render functions are pure and tested; UI glue not unit-tested).

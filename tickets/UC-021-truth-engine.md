@@ -34,6 +34,7 @@ against an independent implementation. Invariants I1 and I2.
 - [ ] 10 million rows evaluated in < 2 s on a laptop (vectorised)
 - [ ] docs/methods.md §2 completed with citations (from UC-002 if available; else
       `TODO(verify)` + note in PR)
+- [ ] Missing values: memberships from UC-020 return NaN for NaN input (e.g. cancelled trains). Truth/proportion functions drop NaN rows from numerator and denominator consistently, document it, and test it (PM review of #36)
 
 ## Tests
 As above. Mark the Simpful test `skipif` Simpful missing, but CI must have it (UC-001).

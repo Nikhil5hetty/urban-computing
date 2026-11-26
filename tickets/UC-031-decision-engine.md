@@ -9,7 +9,7 @@ estimate_h: 4
 depends_on: [UC-020, UC-021]        # hard: needs merged code
 soft_depends_on: [UC-023, UC-014, UC-030, UC-022]   # soft: interface exists; integrate when merged
 agent: claude
-touches: [src/urban_computing/assistant/engine.py, tests/test_engine.py, docs/methods.md, config/vocabulary.yaml]
+touches: [src/urban_computing/assistant/contract.py, src/urban_computing/assistant/engine.py, tests/test_engine.py, docs/methods.md, config/vocabulary.yaml]
 realdata: false
 ---
 
@@ -38,6 +38,7 @@ core: encoder (data → fuzzy words) → engine (quantified truth) → decoder (
       borderline fixture segment
 - [ ] Explanations never state a sentence with truth < β
 - [ ] Decision rule + thresholds documented in docs/methods.md §5 with rationale
+- [ ] Fix the fallback note in `Answer.to_text()` (`assistant/contract.py`): it says "no matching connections were found", but the fallback triggers when there are fewer than 20; word it as too few matching connections (PM review of #38). Only that line of contract.py may change
 
 ## Tests
 `tests/test_engine.py`: monotonicity, margin effect, I4 checker on fixture, small-n fallback.
