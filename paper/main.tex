@@ -1,0 +1,62 @@
+% Seminar paper, Seminar Urban Computing, Human-IST, University of Fribourg (AS-2026).
+% ACM acmart, single-column manuscript, author-year citations (Human-IST seminar guidelines).
+% Build: see paper/README.md. Every number comes from numbers.tex (invariant I6):
+% never type a measured value here; use the macros, or put tables in paper/tables/.
+\documentclass[manuscript,screen,nonacm]{acmart}
+\citestyle{acmauthoryear}
+
+\usepackage{xcolor}
+\newcommand{\placeholder}[1]{\textcolor{gray}{[#1]}}
+
+\input{numbers}  % generated: make paper-numbers (scripts/export_paper_numbers.py)
+
+\begin{document}
+
+\title{Can I Trust My Connection? Fuzzy Linguistic Summaries as the Explainable Core of a
+Swiss Public-Transport Assistant}
+
+\author{Nikhil Shetty}
+\affiliation{%
+  \institution{University of Fribourg, Human-IST Institute}
+  \city{Fribourg}
+  \country{Switzerland}}
+
+% UC-072 writes the final abstract (about 150 words) once the results exist.
+\begin{abstract}
+Commuters ask simple questions about their own trips: is my connection reliable, and how
+late is my train usually? Official punctuality figures answer with a crisp rule and
+network-wide averages, while chatbots answer with vague words that nobody checks. We
+present a citizen-facing assistant for Swiss public transport whose explanations are fuzzy
+linguistic summaries computed from open operational data. The decision word shown to the
+passenger and its explanation come from the same truth computation, so the explanation is
+faithful by construction. Using the quality measures of Hudec and colleagues, we test which
+summaries still hold for a passenger's own line, station and time of day, and how often
+network-wide statements hide local reality. We compare the official crisp view with a view
+based on the passenger's own transfer margin. Finally, we audit a local large language
+model that phrases such answers, scoring its quantified claims with a crisp and a fuzzy
+checker. \placeholder{Key results with numbers from numbers.tex, UC-072.}
+\end{abstract}
+
+\keywords{computing with words, fuzzy linguistic summaries, explainability, public
+transport, open government data, large language models}
+
+\maketitle
+\ResultsBanner
+
+\input{sections/intro}
+\input{sections/related}
+\input{sections/concept}
+\input{sections/prototype}
+\input{sections/data}
+\input{sections/results}
+\input{sections/discussion}
+\input{sections/conclusion}
+\input{sections/genai}
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
+
+\appendix
+\input{appendix}
+
+\end{document}
