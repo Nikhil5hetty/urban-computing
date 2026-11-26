@@ -3,7 +3,7 @@ id: UC-030
 title: Assistant Question/Answer contract
 epic: assistant
 milestone: M1
-status: todo
+status: in-progress
 owner: agent
 estimate_h: 1
 depends_on: []        # hard: needs merged code
