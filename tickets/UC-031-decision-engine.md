@@ -39,6 +39,7 @@ core: encoder (data → fuzzy words) → engine (quantified truth) → decoder (
 - [ ] Explanations never state a sentence with truth < β
 - [ ] Decision rule + thresholds documented in docs/methods.md §5 with rationale
 - [ ] Fix the fallback note in `Answer.to_text()` (`assistant/contract.py`): it says "no matching connections were found", but the fallback triggers when there are fewer than 20; word it as too few matching connections (PM review of #38). Only that line of contract.py may change
+- [ ] Cancellations count as missed: connections with `b_cancelled = true` (actual gap NaN) are encoded as μ_missed = 1, μ_tight = μ_comfortable = 0 before calling the truth engine (which drops NaN rows); a test shows that cancellations raise p_miss (PM review of #39)
 
 ## Tests
 `tests/test_engine.py`: monotonicity, margin effect, I4 checker on fixture, small-n fallback.

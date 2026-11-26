@@ -32,6 +32,7 @@ records with truth, coverage and Qc.
 - [ ] Segments with n < 30 arrivals are kept but flagged `small_n`
 - [ ] Runtime for all segments of 28 days < 20 min on the VM
 - [ ] `make mine` works
+- [ ] `SummaryRecord.n` counts complete (non-NaN) rows; the miner output reports dropped rows per segment (e.g. cancelled arrivals) (PM review of #39)
 
 ## Tests
 `tests/test_miner.py`: fixture with known proportions → expected valid set at β = 0.6;
