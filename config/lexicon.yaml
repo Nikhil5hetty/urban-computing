@@ -1,0 +1,50 @@
+# Deterministic lexicon for the claim parser (UC-041). Maps free-text phrases to the
+# canonical words of config/vocabulary.yaml (quantifiers: set word; summarizers:
+# "<attribute>:<word>") and restrictions to "<family>=<key>" of config/study.yaml.
+# Matching: case-insensitive, whole words, longest phrase first ("very late" before "late").
+# Canonical keys themselves (e.g. "about_half", "on_time") always match too.
+# Changing this file changes SRQ3 parse results: log it in docs/decisions.md.
+
+quantifiers:
+  few: [few, a few, a handful, a handful of, a small number of, a small share of,
+        a minority of, not many]
+  about_half: [about half, roughly half, around half, approximately half, nearly half,
+               close to half, half, about 50 percent, about 50%]
+  most: [most, the majority, the majority of, a majority of, mostly, the bulk of,
+         usually, generally, typically, in most cases]
+  almost_none: [almost none, hardly any, almost no, virtually no, very few]
+  almost_all: [almost all, nearly all, virtually all, almost always, nearly always]
+
+summarizers:
+  arrival_delay_minutes:on_time: [on time, punctual, punctually, on schedule, on-time]
+  arrival_delay_minutes:slightly_late: [slightly late, a little late, a bit late,
+                                        slightly delayed, a little delayed, a few minutes late]
+  arrival_delay_minutes:late: [late, delayed, behind schedule]
+  arrival_delay_minutes:very_late: [very late, badly delayed, severely delayed, heavily delayed,
+                                    significantly delayed, seriously delayed]
+  connection_slack_minutes:missed: [missed, miss, misses, missing the connection]
+  connection_slack_minutes:tight: [tight, very short, a close call, cutting it close, barely make]
+  connection_slack_minutes:comfortable: [comfortable, comfortably, plenty of time, relaxed,
+                                         easily make, easy to make]
+
+restrictions:
+  weekday_group:
+    monday: [monday, mondays]
+    friday: [friday, fridays]
+    weekend: [weekend, weekends, saturday, saturdays, sunday, sundays]
+    weekday: [weekday, weekdays, working day, working days, workdays]
+  time_band:
+    early: [early morning, early mornings, before 6]
+    morning_peak: [morning peak, morning rush, morning rush hour, morning, mornings]
+    midday: [midday, middle of the day, lunchtime, around noon]
+    evening_peak: [evening peak, evening rush, evening rush hour, rush hour in the evening]
+    evening: [evening, evenings]
+    night: [night, at night, overnight]
+
+# A sentence with one of these cues states a cause the data cannot check (rule 4).
+causal_cues: [because, due to, caused by, as a result of, owing to, on account of, thanks to,
+              the reason, results from, result of]
+
+# Negation makes a phrase-level mapping unsafe ("not late" != late): such sentences are
+# kept as unverifiable instead of guessed.
+negation_cues: [not, no, never, none, "n't", neither, nor, without]
