@@ -1,7 +1,8 @@
 # One entry point for humans and coding agents. Every ticket's tests run under `make check`.
 .PHONY: install check lint test test-realdata eval eval-sample board-dry-run clean-results \
 	realdata-status data-download data-verify data-ingest data-quality data-arrivals \
-	data-connections mine questions llm-collect ablations paper-numbers dispatch-plan
+	data-connections mine questions llm-collect ablations paper-numbers dispatch-plan \
+	codex-next codex-loop
 
 install:
 	uv sync --extra dev
@@ -92,3 +93,11 @@ ablations:
 paper-numbers:
 	$(call need,scripts/export_paper_numbers.py,UC-070)
 	uv run python scripts/export_paper_numbers.py
+
+# Local Codex runner (scripts/codex_local.py): one ready Codex ticket -> worktree -> PR.
+CODEX_RUN = uv run --no-project --with pyyaml python scripts/codex_local.py
+codex-next:
+	$(CODEX_RUN)
+
+codex-loop:
+	$(CODEX_RUN) --loop

@@ -28,7 +28,7 @@ push to main / hourly / manual
         │
         ▼
 plan job ── reconcile labels ── select ready tickets (setup first, then critical path)
-        │                         caps: total 3, claude 1, codex 2 (repo variables)
+        │                         caps: config/dispatch.yaml (codex 0: runs locally)
         ├──► claude job (matrix)   anthropics/claude-code-action@v1, CLAUDE_CODE_OAUTH_TOKEN
         │      Claude reads AGENTS.md + ticket, implements, runs make check,
         │      pushes branch uc-xxx-slug and opens the PR itself
@@ -60,6 +60,10 @@ issue labels: agent:running → agent:review (Claude: PR opened; Codex: PR marke
    pip install uv && uv sync --extra dev
    ```
    Then on any PR, test once by commenting `@codex say hello` to confirm it responds.
+   **Status (26 Nov 2026):** non-review `@codex` comments get "To use Codex here, create
+   an environment for this repo" although the environment exists (known Codex issue,
+   openai/codex#20093). The cloud Codex job is therefore off (`caps.codex: 0`) and Codex
+   tickets run through the local runner below.
 5. **Switch on:** set `enabled: true` in `config/dispatch.yaml` and commit to `main`
    (caps live in the same file). Emergency stop without a commit: repo variable
    `DISPATCH_ENABLED=false`.
@@ -67,6 +71,31 @@ issue labels: agent:running → agent:review (Claude: PR opened; Codex: PR marke
    approving review. Agents never merge.
 7. First run: Actions → dispatch → *Run workflow* with `dry_run` ticked; check the plan;
    then run without it.
+
+### Local Codex runner (`scripts/codex_local.py`)
+
+Runs Codex tickets one at a time on your machine with the Codex CLI and your ChatGPT login
+(`codex login`; the binary bundled with the VS Code extension is found automatically, or set
+`CODEX_BIN`). Needs `uv` and `gh` (logged in).
+
+```
+make codex-next        # next ready Codex ticket -> PR, then stop
+make codex-loop        # repeat until nothing is ready (stops at the first failure)
+uv run --no-project --with pyyaml python scripts/codex_local.py --dry-run | --ticket UC-004
+```
+
+Per ticket: pick from `origin/main` (agent `codex` or `any`; same order and labels as the
+dispatcher; skipped while another Codex ticket is `agent:running`) → worktree in
+`../urban-computing-codex-runs/<branch>` (your checkout is untouched) → commit
+`status: in-progress` → `uv sync --extra dev` → `codex exec` (workspace-write sandbox, no
+network, told not to use git) → the runner checks ticket status `done`, `make check` green
+and nothing staged under `data/` → commit, push, `gh pr create` with Codex's final message as
+body (files outside `touches:` are listed as warnings) → `agent:review`.
+`uv.lock` is committed only by tickets that list it in `touches:`.
+On failure: `agent:failed`, nothing pushed, worktree and logs kept in
+`../urban-computing-codex-runs/` (the message says how to clean up and retry). A ticket
+Codex sets to `blocked` is pushed as a draft PR so you can read the blocker.
+Because Codex PRs are opened with your `gh` login, CI runs on them as usual.
 
 ### Manual mode (no automation, same tickets)
 
@@ -77,8 +106,7 @@ it into Claude Code (terminal, VM) or the Codex app/CLI. Before you start, add t
 ### Daily operation
 
 - Merge a reviewed PR → the dispatcher starts whatever just became ready.
-- Codex draft PR finished (Codex posted its summary) → review it, mark *Ready for review*,
-  merge. Marking it ready frees the Codex slot on the next dispatch run.
+- Codex: run `make codex-next` (or `make codex-loop`) after merging; review and merge its PRs.
 - A ticket stuck in `agent:failed`: read the comment, fix the ticket text or the cause,
   remove the label → it is picked up on the next run (merge, hourly, or manual).
 - Pause everything: `enabled: false` in config/dispatch.yaml, or variable `DISPATCH_ENABLED=false`.

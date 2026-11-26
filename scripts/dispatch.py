@@ -246,10 +246,22 @@ AGENT_SPECIFIC = {
         "`make check` before your final push. In your final message summarise what changed, "
         "how you tested, deviations and TODO(verify) items."
     ),
+    # scripts/codex_local.py: Codex CLI in a local worktree; the runner does all git work.
+    "codex_local": (
+        "You are running via `codex exec` in a local git worktree, already on branch "
+        "`{branch}` (created from `main`, with a commit setting the ticket to in-progress). "
+        "Do NOT run `git commit`, `git push` or `gh`: after you finish, the runner checks the "
+        "ticket status, runs `make check`, commits, pushes and opens the pull request. "
+        "Your final message becomes the pull request description: follow "
+        "`.github/pull_request_template.md`, include `Closes #{issue}`, and state what "
+        "changed, how you tested (commands + output summary), deviations from the ticket "
+        "and open TODO(verify) items."
+    ),
 }
 
 
-def render_prompt(t: tk.Ticket, agent: str, issue: int) -> str:
+def render_prompt(t: tk.Ticket, agent: str, issue: int, variant: str | None = None) -> str:
+    """Agent prompt for ticket `t`; `variant` selects an AGENT_SPECIFIC entry (default: agent)."""
     template = PROMPT_PATH.read_text(encoding="utf-8")
     fields = {
         "id": t.id,
@@ -260,7 +272,7 @@ def render_prompt(t: tk.Ticket, agent: str, issue: int) -> str:
         "agent": agent,
         "soft": ", ".join(t.meta.get("soft_depends_on") or []) or "none",
     }
-    fields["agent_specific"] = AGENT_SPECIFIC[agent].format(**fields)
+    fields["agent_specific"] = AGENT_SPECIFIC[variant or agent].format(**fields)
     return template.format(**fields)
 
 

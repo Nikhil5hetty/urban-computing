@@ -5,4 +5,4 @@ enabled: false
 caps:
   total: 3
   claude: 1   # Claude Pro usage limits are tight
-  codex: 2
+  codex: 0   # Codex runs locally via scripts/codex_local.py (`@codex` comments unreliable)
