@@ -149,6 +149,13 @@ Page numbers are journal pages. We checked the worked examples below numerically
 PR). hudec2017, the chapter that introduced the validity-coverage merge, is paywalled. We
 cite it only through hudec2018, which states the rule as an equation.
 
+**Implementation (UC-022).** `urban_computing.fuzzy.quality`: `included_ratio` (i_C),
+`coverage_from_ratio` (f), `coverage(mu_R, mu_S, params)` (reads `mining.coverage_r1/r2`),
+`quality_qc(truth, cov)` (product only), `ordinal_sum` and
+`regional_quality(per_region_truth, region_sizes) -> dict` (D-027). Missing memberships (NaN)
+are dropped row-wise as in §2, so n counts complete records. Every test vector below is
+reproduced in `tests/test_quality.py`.
+
 ### 3.1 Coverage (summaries with restriction)
 
 Why: a restricted summary can have high validity but rest on a handful of records (outliers).
