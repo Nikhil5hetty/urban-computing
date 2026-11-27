@@ -6,9 +6,13 @@
 > **TODO(verify)** Confirm the real-data product strings and the 28-day runtime.
 > To replace this example with the study report, run `make data-ingest` on local study CSVs, then run `time make data-quality` on the VM.
 
-Operating days 2026-10-01 through 2026-10-28 (inclusive). Punctual means strictly less than 3 minutes late. I5 uses the preregistered interval [80%, 99%]. Its denominator excludes cancelled arrivals, missing arrival timestamps and arrivals in the ambiguous DST hour.
+Operating days 2026-10-01 through 2026-10-28 (inclusive). Punctual means strictly less than 3 minutes late. I5 uses the preregistered interval [80%, 99%]. It counts regular, stopping train arrivals with REAL status and both planned and actual arrival times. It excludes cancellations and arrivals whose planned or actual arrival falls in the ambiguous DST hour. A cancellation has no observed delay for I5. In SRQ3 it counts as a missed connection under D-023.
 
-Diagnostic tables count stop-event rows in the study period before product or status filtering. Timestamp anomaly counts compare available timestamps, including forecasts.
+Product, anomaly and DST counts cover all stop-event rows in the study period. Timestamp anomaly counts compare available timestamps, including forecasts.
+
+Arrival-status shares cover rows with a planned arrival across all products. The list of operators below 50% REAL coverage applies the study product, additional-trip and pass-through filters.
+
+Stop-event rows without a planned arrival: 32.
 
 Blank arrival statuses are recovered from the matching local CSVs.
 
@@ -20,7 +24,8 @@ Blank arrival statuses are recovered from the matching local CSVs.
 | scope_products | 67 | 67 |
 | exclude_additional_trips | 67 | 67 |
 | exclude_pass_through | 67 | 66 |
-| keep_status | 66 | 32 |
+| has_arrival | 66 | 35 |
+| keep_status | 35 | 32 |
 | measurable_real_arrival | 32 | 32 |
 
 ## Product counts
@@ -34,17 +39,16 @@ Blank arrival statuses are recovered from the matching local CSVs.
 
 | Operator | Product | Status | Rows | Share |
 | --- | --- | --- | --- | --- |
-| TEST | Zug | (empty) | 32 | 47.76% |
-| TEST | Zug | ESTIMATED | 1 | 1.49% |
-| TEST | Zug | FORECAST | 1 | 1.49% |
-| TEST | Zug | REAL | 32 | 47.76% |
-| TEST | Zug | UNKNOWN | 1 | 1.49% |
+| TEST | Zug | (empty) | 0 | 0.00% |
+| TEST | Zug | ESTIMATED | 1 | 2.86% |
+| TEST | Zug | FORECAST | 1 | 2.86% |
+| TEST | Zug | REAL | 32 | 91.43% |
+| TEST | Zug | UNKNOWN | 1 | 2.86% |
 
 ## Operators with less than 50% REAL arrival coverage
 
 | Operator | Rows | REAL share |
 | --- | --- | --- |
-| TEST | 67 | 47.76% |
 
 ## Anomalies and flagged rows
 

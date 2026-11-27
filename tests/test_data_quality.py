@@ -50,8 +50,9 @@ def test_fixture_report_and_cli(tmp_path):
         assert report["anomalies"][key] == count
     assert report["status_basis"] == "raw_blanks_recovered"
     coverage = {row["status"]: row["rows"] for row in report["arrival_status"]}
-    assert coverage == {"": 32, "ESTIMATED": 1, "FORECAST": 1, "REAL": 32, "UNKNOWN": 1}
-    assert report["low_real_coverage"] == [{"operator": "TEST", "rows": 67, "real_share": 32 / 67}]
+    assert coverage == {"": 0, "ESTIMATED": 1, "FORECAST": 1, "REAL": 32, "UNKNOWN": 1}
+    assert report["rows_without_planned_arrival"] == 32
+    assert report["low_real_coverage"] == []
     before = md.read_bytes(), js.read_bytes()
     result = subprocess.run(
         [sys.executable, "scripts/data_quality.py", "--config", str(config), "--out-md", str(md)],
@@ -105,8 +106,9 @@ def test_filters_anomalies_and_dst(tmp_path):
         ("scope_products", 11, 10),
         ("exclude_additional_trips", 10, 9),
         ("exclude_pass_through", 9, 8),
-        ("keep_status", 8, 7),
-        ("measurable_real_arrival", 7, 5),
+        ("has_arrival", 8, 7),
+        ("keep_status", 7, 6),
+        ("measurable_real_arrival", 6, 5),
     ]
     assert report["I5"] == {"value": 0.8, "pass": True, "arrivals": 5, "punctual": 4}
     assert report["ambiguous_dst"] == [
@@ -121,8 +123,36 @@ def test_filters_anomalies_and_dst(tmp_path):
         "cancelled": 0,
         "pass_through": 1,
     }
-    assert report["low_real_coverage"] == []  # OTHER is exactly at 50%.
+    assert report["low_real_coverage"] == [{"operator": "OTHER", "rows": 1, "real_share": 0.0}]
     assert report["products"][0] == {"product": "Bus", "transport_text": " B|x ", "rows": 1}
+
+
+def test_srq1_coverage_uses_only_scoped_arrivals(tmp_path):
+    config, _ = _config(tmp_path, tmp_path / "missing-raw")
+    interim = tmp_path / "interim"
+    planned = ts(date(2026, 10, 25), "09:00")
+    events = stop_events(
+        [
+            {"planned_arrival": planned},
+            {"arrival_status": ""},
+            {"arrival_status": ""},
+            {"planned_arrival": planned, "arrival_status": "", "product": "Bus"},
+            {"planned_arrival": planned, "arrival_status": "", "additional_trip": True},
+            {"planned_arrival": planned, "arrival_status": "", "pass_through": True},
+        ]
+    )
+    (interim / "ist").mkdir(parents=True)
+    events.to_parquet(interim / "ist" / "events.parquet", index=False)
+
+    report = build_quality_report(interim, config, tmp_path / "out.md", tmp_path / "out.json")
+
+    assert report["rows_without_planned_arrival"] == 2
+    assert report["low_real_coverage"] == []
+    train_status = {
+        row["status"]: row["rows"] for row in report["arrival_status"] if row["product"] == "Zug"
+    }
+    assert train_status[""] == 2
+    assert train_status["REAL"] == 1
 
 
 def test_sample_invariant(tmp_path):

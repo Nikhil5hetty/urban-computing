@@ -18,6 +18,7 @@ from urban_computing.data.schemas import TZ
 # Both folds of 02:00–02:59 Europe/Zurich on 2026-10-25.
 _DST_START = "TIMESTAMPTZ '2026-10-25 00:00:00+00'"
 _DST_END = "TIMESTAMPTZ '2026-10-25 02:00:00+00'"
+# Band specified in eval/hypotheses.yaml (I5).
 _I5_BAND = (0.80, 0.99)
 _STATUSES = ("REAL", "ESTIMATED", "FORECAST", "UNKNOWN", "")
 
@@ -46,18 +47,21 @@ _EVENT_DST = " OR ".join(
     ]
 )
 
-_FILTERS = f"""
+_SCOPED = """
     WITH scoped AS (
         SELECT *,
             product IN ? AS train,
             NOT (? AND additional_trip) AS regular,
             NOT (? AND pass_through) AS stopping,
-            arrival_status IN ? AS kept_status,
+            planned_arrival IS NOT NULL AS has_arrival,
             epoch(actual_arrival - planned_arrival) AS delay_seconds
         FROM events
         WHERE operating_day BETWEEN ?::DATE AND ?::DATE
-    ), eligible AS (
-        SELECT *, train AND regular AND stopping AND kept_status AS kept,
+    )
+"""
+
+_ELIGIBLE = f""", eligible AS (
+        SELECT *, train AND regular AND stopping AND has_arrival AND arrival_status IN ? AS kept,
             arrival_status = 'REAL' AND NOT cancelled
                 AND delay_seconds IS NOT NULL AND NOT ({_ARRIVAL_DST}) AS measured
         FROM scoped
@@ -76,36 +80,41 @@ def _i5(n: int, punctual: int) -> dict:
     }
 
 
-def _filter_params(config: dict) -> list:
+def _scope_params(config: dict) -> list:
     data = config["data"]
     return [
         data["scope_products"],
         data["exclude_additional_trips"],
         data["exclude_pass_through"],
-        data["keep_status"],
         *_period(config),
-        config["crisp_baseline"]["punctual_threshold_minutes"] * 60,
     ]
 
 
 def _punctuality(connection: duckdb.DuckDBPyConnection, config: dict) -> tuple[dict, list[dict]]:
-    count, period, trains, regular, stopping, kept, measured, punctual = connection.execute(
-        _FILTERS
+    counts = connection.execute(
+        _SCOPED
+        + _ELIGIBLE
         + """
         SELECT (SELECT count(*) FROM events), count(*), count_if(train),
             count_if(train AND regular), count_if(train AND regular AND stopping),
+            count_if(train AND regular AND stopping AND has_arrival),
             count_if(kept), count_if(kept AND measured),
             count_if(kept AND measured AND delay_seconds < ?)
         FROM eligible
         """,
-        _filter_params(config),
+        [
+            *_scope_params(config),
+            config["data"]["keep_status"],
+            config["crisp_baseline"]["punctual_threshold_minutes"] * 60,
+        ],
     ).fetchone()
-    counts = [value or 0 for value in (count, period, trains, regular, stopping, kept, measured)]
+    *counts, punctual = (value or 0 for value in counts)
     names = (
         "period",
         "scope_products",
         "exclude_additional_trips",
         "exclude_pass_through",
+        "has_arrival",
         "keep_status",
         "measurable_real_arrival",
     )
@@ -113,7 +122,7 @@ def _punctuality(connection: duckdb.DuckDBPyConnection, config: dict) -> tuple[d
         {"filter": name, "before": before, "after": after}
         for name, before, after in zip(names, counts[:-1], counts[1:], strict=True)
     ]
-    return _i5(counts[-1], punctual or 0), filters
+    return _i5(counts[-1], punctual), filters
 
 
 def _blank_statuses(
@@ -138,6 +147,7 @@ def _blank_statuses(
         product = names["PRODUKT_ID"]
         status = names["AN_PROGNOSE_STATUS"]
         day = names["BETRIEBSTAG"]
+        arrival = names["ANKUNFTSZEIT"]
         with TemporaryDirectory() as staging:
             source = path
             if encoding not in {"utf-8", "utf-8-sig"}:
@@ -158,6 +168,8 @@ def _blank_statuses(
                 SELECT coalesce({operator}, ''), coalesce({product}, ''), count(*)
                 FROM raw_statuses
                 WHERE trim({status}) = ''
+                    AND try_strptime(trim({arrival}),
+                        ['%d.%m.%Y %H:%M:%S', '%d.%m.%Y %H:%M']) IS NOT NULL
                     AND try_strptime(trim({day}), '%d.%m.%Y')::DATE BETWEEN ?::DATE AND ?::DATE
                 GROUP BY 1, 2
                 """,
@@ -169,24 +181,28 @@ def _blank_statuses(
 
 
 def _diagnostics(connection: duckdb.DuckDBPyConnection, config: dict, interim_dir: Path) -> dict:
-    start, end = _period(config)
     rows = connection.execute(
-        f"""
+        _SCOPED
+        + f"""
         SELECT coalesce(operator_abbr, ''), coalesce(product, ''), coalesce(transport_text, ''),
             coalesce(trim(arrival_status), ''),
-            count(*), count_if(actual_departure < actual_arrival),
+            count(*), count_if(has_arrival),
+            count_if(has_arrival AND train AND regular AND stopping),
+            count_if(actual_departure < actual_arrival),
             count_if(actual_departure < planned_departure),
             count_if(abs(epoch(actual_arrival - planned_arrival)) > 21600),
             count_if(stop_name IS NULL OR trim(stop_name) = ''),
             count_if(cancelled), count_if(pass_through), count_if({_EVENT_DST}),
             list(DISTINCT source_file ORDER BY source_file)
-        FROM events WHERE operating_day BETWEEN ?::DATE AND ?::DATE
+        FROM scoped
         GROUP BY 1, 2, 3, 4 ORDER BY 1, 2, 3, 4
         """,
-        [start, end],
+        _scope_params(config),
     ).fetchall()
     products = Counter()
     statuses = defaultdict(Counter)
+    operators = defaultdict(Counter)
+    no_arrival = 0
     dst = Counter()
     anomalies = dict.fromkeys(
         (
@@ -200,9 +216,25 @@ def _diagnostics(connection: duckdb.DuckDBPyConnection, config: dict, interim_di
         0,
     )
     sources = set()
-    for operator, product, transport, status, count, *metrics, ambiguous, files in rows:
+    for row in rows:
+        (
+            operator,
+            product,
+            transport,
+            status,
+            count,
+            arrivals,
+            scoped,
+            *metrics,
+            ambiguous,
+            files,
+        ) = row
         products[product, transport] += count
-        statuses[operator, product][status] += count
+        no_arrival += count - (arrivals or 0)
+        if arrivals:
+            statuses[operator, product][status] += arrivals
+        if scoped:
+            operators[operator][status] += scoped
         dst[operator] += ambiguous or 0
         sources.update(files)
         for name, value in zip(anomalies, metrics, strict=True):
@@ -219,10 +251,8 @@ def _diagnostics(connection: duckdb.DuckDBPyConnection, config: dict, interim_di
             group[""] = count
 
     coverage = []
-    operators = defaultdict(Counter)
     for (operator, product), counts in sorted(statuses.items()):
         total = counts.total()
-        operators[operator].update(counts)
         for status in sorted(set(_STATUSES) | counts.keys()):
             coverage.append(
                 {
@@ -240,6 +270,7 @@ def _diagnostics(connection: duckdb.DuckDBPyConnection, config: dict, interim_di
         ],
         "status_basis": "raw_blanks_recovered" if blanks is not None else "parquet_normalized",
         "arrival_status": coverage,
+        "rows_without_planned_arrival": no_arrival,
         "low_real_coverage": [
             {
                 "operator": operator,
@@ -268,11 +299,20 @@ def _markdown(report: dict) -> str:
         "",
         f"Operating days {period['start']} through {period['end']} (inclusive). "
         f"Punctual means strictly less than {report['punctual_threshold_minutes']} minutes late. "
-        "I5 uses the preregistered interval [80%, 99%]. Its denominator excludes cancelled "
-        "arrivals, missing arrival timestamps and arrivals in the ambiguous DST hour.",
+        "I5 uses the preregistered interval [80%, 99%]. It counts regular, stopping train "
+        "arrivals with REAL status and both planned and actual arrival times. It excludes "
+        "cancellations and arrivals whose planned or actual arrival falls in the ambiguous "
+        "DST hour. A cancellation has no observed delay for I5. In SRQ3 it counts as a "
+        "missed connection under D-023.",
         "",
-        "Diagnostic tables count stop-event rows in the study period before product or status "
-        "filtering. Timestamp anomaly counts compare available timestamps, including forecasts.",
+        "Product, anomaly and DST counts cover all stop-event rows in the study period. "
+        "Timestamp anomaly counts compare available timestamps, including forecasts.",
+        "",
+        "Arrival-status shares cover rows with a planned arrival across all products. "
+        "The list of operators below 50% REAL coverage applies the study product, "
+        "additional-trip and pass-through filters.",
+        "",
+        f"Stop-event rows without a planned arrival: {report['rows_without_planned_arrival']:,}.",
     ]
     if report["status_basis"] == "parquet_normalized":
         lines.extend(
