@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from urban_computing.assistant.contract import Question
-from urban_computing.assistant.crisp import _WEEKDAY_GROUPS
+from urban_computing.assistant.crisp import _WEEKDAY_GROUPS, _segment
 from urban_computing.assistant.engine import (
     FALLBACK_MIN_CONNECTIONS,
     VOCAB_PATH,
@@ -24,7 +24,7 @@ _BORDERLINE_DISTANCE = 0.05
 
 
 def _question_set(
-    connections: pd.DataFrame, config: dict, seed: int, *, matched_feeders: pd.Series | None = None
+    connections: pd.DataFrame, config: dict, seed: int, *, arrivals: pd.DataFrame | None = None
 ) -> tuple[list[Question], dict]:
     """Sample eligible questions and collect the manifest for the same selection."""
     settings = config["connections"]
@@ -37,8 +37,6 @@ def _question_set(
         connections["b_cancelled"].fillna(False)
         | (connections["actual_gap_min"].notna() & connections["planned_gap_min"].notna())
     ]
-    if matched_feeders is not None:
-        measured = measured.assign(matched_feeder=matched_feeders)
     strata = defaultdict(list)
     for (hub, band), at_time in measured.groupby(["hub", "time_band"], sort=True):
         if hub not in settings["hubs"] or band not in bands:
@@ -51,10 +49,22 @@ def _question_set(
                 for route, segment in at_group.groupby(field, sort=True):
                     if not route or len(segment) < FALLBACK_MIN_CONNECTIONS:
                         continue
-                    # The assistant scores the original segment. Reject a segment
-                    # if dropping an unverified feeder would change its population.
-                    if matched_feeders is not None and not segment["matched_feeder"].all():
-                        continue
+                    # Fuzzy and official views have distinct measured cohorts. The
+                    # official view uses resolved stop IDs, not pairwise feeder matches.
+                    if arrivals is not None:
+                        candidate = Question.model_validate(
+                            {
+                                "hub": hub,
+                                "time_band": band,
+                                "weekday_group": group,
+                                "margin_min": settings["user_margins_minutes"][0],
+                                field: route,
+                            },
+                            context={"study_config": config},
+                        )
+                        official, _ = _segment(candidate, arrivals, config)
+                        if official.empty:
+                            continue
                     for margin in sorted(set(settings["user_margins_minutes"])):
                         slack = personal_slack(
                             segment, margin, settings["min_transfer_minutes_default"]

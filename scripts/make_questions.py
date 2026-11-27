@@ -11,26 +11,7 @@ import yaml
 
 from urban_computing.assistant.crisp import hub_stop_keys
 from urban_computing.data import connections as connection_data
-from urban_computing.data.arrivals import _stop_key
 from urban_computing.evaluation.questions import _question_set, write_questions
-
-
-def _matched_feeders(connections: pd.DataFrame, arrivals: pd.DataFrame, config: dict) -> pd.Series:
-    """Mark pairs whose feeder is a measured arrival at the hub's resolved stops."""
-    arrivals = arrivals.loc[~arrivals["cancelled"] & arrivals["delay_min"].notna()]
-    stop_keys = _stop_key(arrivals["stop_id"])
-    arrival_keys = ["operating_day", "journey_id", "time_band"]
-    pair_keys = ["operating_day", "arr_journey_id", "time_band"]
-    matched = pd.Series(False, index=connections.index)
-    for hub in config["connections"]["hubs"]:
-        keys = hub_stop_keys(hub, config)
-        if not keys:
-            raise ValueError(f"No resolved stop identifiers for {hub}")
-        feeders = pd.MultiIndex.from_frame(arrivals.loc[stop_keys.isin(keys), arrival_keys])
-        at_hub = connections["hub"].eq(hub)
-        pairs = pd.MultiIndex.from_frame(connections.loc[at_hub, pair_keys])
-        matched.loc[at_hub] = pairs.isin(feeders)
-    return matched
 
 
 def main() -> None:
@@ -47,22 +28,14 @@ def main() -> None:
     atlas = Path(data["service_points_dir"]) / "actual-date-swiss-service-point.csv"
     try:
         pairs = pd.read_parquet(processed / "connections.parquet")
-        arrivals = pd.read_parquet(
-            processed / "arrivals.parquet",
-            columns=[
-                "operating_day",
-                "journey_id",
-                "time_band",
-                "cancelled",
-                "delay_min",
-                "stop_id",
-            ],
-        )
+        arrivals = pd.read_parquet(processed / "arrivals.parquet")
         if not settings.get("hub_stop_ids"):
             settings["hub_stop_ids"] = connection_data._hub_ids(atlas, settings["hubs"])
-        matched = _matched_feeders(pairs, arrivals, config)
+        for hub in settings["hubs"]:
+            if not hub_stop_keys(hub, config):
+                raise ValueError(f"No resolved stop identifiers for {hub}")
         questions, manifest = _question_set(
-            pairs, config, config["study"]["seed"], matched_feeders=matched
+            pairs, config, config["study"]["seed"], arrivals=arrivals
         )
     except (FileNotFoundError, ValueError) as error:
         parser.exit(1, f"{parser.prog}: {error}\n")

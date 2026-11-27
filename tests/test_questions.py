@@ -10,8 +10,9 @@ import yaml
 from scripts import make_questions as cli
 from tests import factories
 from urban_computing.assistant.contract import Question
+from urban_computing.assistant.crisp import crisp_answer
 from urban_computing.assistant.engine import _p_miss
-from urban_computing.evaluation.questions import make_questions, write_questions
+from urban_computing.evaluation.questions import _question_set, make_questions, write_questions
 from urban_computing.fuzzy.vocabulary import load_vocabulary
 
 
@@ -103,8 +104,15 @@ def test_rejects_missing_borderline_quota(tables, study):
         make_questions(pairs, study, 0)
 
 
-def test_cli_writes_question_set_and_manifest(tables, study, tmp_path, monkeypatch):
+@pytest.mark.parametrize("mixed_ids", [False, True])
+def test_cli_writes_question_set_and_manifest(tables, study, tmp_path, monkeypatch, mixed_ids):
     pairs, arrivals = tables
+    if mixed_ids:
+        # UC-014 can resolve these feeders by SLOID while ARRIVALS keeps the
+        # alternate BPUIC. Losing a feeder from the official cohort must not
+        # remove a measured connection from the fuzzy cohort.
+        first = arrivals.groupby(["stop_id", "time_band", "line"]).head(1).index
+        arrivals.loc[first, "stop_id"] = "9999998"
     ids = {hub: [f"850000{i}"] for i, hub in enumerate(study["connections"]["hubs"], 1)}
 
     def resolve(atlas_path, hubs):
@@ -130,13 +138,117 @@ def test_cli_writes_question_set_and_manifest(tables, study, tmp_path, monkeypat
     assert manifest["n_questions"] == len(questions) >= 120
     assert manifest["n_borderline"] == len(questions)
     assert {q.question_id for q in questions} == set(manifest["segments"])
-    assert {segment["n"] for segment in manifest["segments"].values()} <= {20, 60}
+    assert {segment["n"] for segment in manifest["segments"].values()} <= {20, 60, 80}
     assert all(q.arr_line != "wrong" for q in questions)
     expected = Counter((q.hub, q.time_band, q.weekday_group, q.margin_min) for q in questions)
     assert {
         (s["hub"], s["time_band"], s["weekday_group"], s["margin_min"]): s["n"]
         for s in manifest["strata_counts"]
     } == expected
+    for question in questions:
+        crisp_answer(
+            question,
+            arrivals,
+            {
+                **study,
+                "connections": {
+                    **study["connections"],
+                    "hub_stop_ids": ids,
+                },
+            },
+        )
+        _, n, fallback, _, _ = _p_miss(question, pairs, arrivals, load_vocabulary(), study)
+        assert n == manifest["segments"][question.question_id]["n"]
+        assert not fallback
     before = output.read_bytes(), manifest_path.read_bytes()
     cli.main()
     assert before == (output.read_bytes(), manifest_path.read_bytes())
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("stop_id", "9999998"),
+        ("time_band", "outside"),
+        ("weekday", 6),
+        ("line", "other"),
+        ("cancelled", True),
+        ("delay_min", float("nan")),
+    ],
+)
+def test_excludes_candidates_without_measured_official_cohort(tables, study, field, value):
+    pairs, arrivals = tables
+    study["connections"]["hub_stop_ids"] = {
+        hub: [f"850000{i}"] for i, hub in enumerate(study["connections"]["hubs"], 1)
+    }
+    arrivals.loc[arrivals["line"].eq("IC1"), field] = value
+    questions, _ = _question_set(pairs, study, study["study"]["seed"], arrivals=arrivals)
+    assert questions
+    assert all(
+        q.arr_line != "IC1" or (field == "weekday" and q.weekday_group == "all") for q in questions
+    )
+    assert any(q.arr_line == "IR16" for q in questions)
+
+
+def test_mixed_identifiers_from_real_builders(study):
+    from datetime import date, timedelta
+
+    from urban_computing.data.arrivals import build_arrivals
+    from urban_computing.data.connections import build_connections
+
+    hub = "Zürich HB"
+    study["connections"]["hubs"] = [hub]
+    ids = {hub: ["8503000", "ch:1:sloid:3000"]}
+    study["connections"]["hub_stop_ids"] = ids
+    rows = []
+    for day_index in range(28):
+        day = date(2026, 10, 1) + timedelta(days=day_index)
+        for hour in (4, 7, 19):
+            for route_index, route in enumerate(("IC1", "IR16", "RE3")):
+                planned = factories.ts(day, f"{hour:02d}:{route_index * 20:02d}")
+                base = {
+                    "operating_day": day,
+                    "stop_id": "8503000",
+                    "sloid": "ch:1:sloid:3000",
+                    "stop_name": hub,
+                }
+                rows.append(
+                    {
+                        **base,
+                        "journey_id": f"A-{day}-{hour}-{route}",
+                        "line": route,
+                        "stop_id": "9999998" if day_index == 0 else "8503000",
+                        "planned_arrival": planned,
+                        "actual_arrival": planned + timedelta(minutes=14 if day_index < 3 else 0),
+                    }
+                )
+                rows.append(
+                    {
+                        **base,
+                        "journey_id": f"B-{day}-{hour}-{route}",
+                        "line": "S1",
+                        "planned_departure": planned + timedelta(minutes=4),
+                        "actual_departure": planned + timedelta(minutes=4),
+                    }
+                )
+    events = factories.stop_events(rows)
+    atlas = pd.DataFrame(
+        [
+            {
+                "number": "8503000",
+                "sloid": "ch:1:sloid:3000",
+                "isoCountryCode": "CH",
+                "cantonAbbreviation": "ZH",
+            }
+        ]
+    )
+    arrivals = build_arrivals(events, atlas, study)
+    pairs = build_connections(events, ids, study)
+    assert arrivals["stop_id"].eq("9999998").any()
+    questions, manifest = _question_set(pairs, study, study["study"]["seed"], arrivals=arrivals)
+    assert len(questions) >= 120
+    for question in questions:
+        crisp_answer(question, arrivals, study)
+        _, n, fallback, _, _ = _p_miss(question, pairs, arrivals, load_vocabulary(), study)
+        assert not fallback
+        assert n == manifest["segments"][question.question_id]["n"]
