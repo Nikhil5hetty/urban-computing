@@ -1,9 +1,10 @@
 # UC-040 Apertus runs on UBELIX
 
-The configured model is `swiss-ai/Apertus-8B-Instruct-2509`. The runner pins both the
-weights and tokenizer to `b946d40447b2b597999b9c86d44bee0b452c919f` and records this
-revision in each row. The pin lives in `runner.py` because the ticket's edit scope
-excludes `config/study.yaml`. [Swiss AI model revision](https://huggingface.co/swiss-ai/Apertus-8B-Instruct-2509/tree/b946d40447b2b597999b9c86d44bee0b452c919f).
+The configured model is `swiss-ai/Apertus-8B-Instruct-2509`. Staging and inference use
+the full commit hash from `llm.model_revision` when set in `config/study.yaml`. The
+current config uses the runner's Apertus fallback, `b946d40447b2b597999b9c86d44bee0b452c919f`.
+Inference loads the weights and tokenizer at the resolved revision and records it in each row.
+[Swiss AI model revision](https://huggingface.co/swiss-ai/Apertus-8B-Instruct-2509/tree/b946d40447b2b597999b9c86d44bee0b452c919f).
 
 ## Prompt evidence
 
@@ -37,13 +38,15 @@ model on storage visible to the GPU nodes. The cache holds roughly 16 GB of mode
 uv sync --locked --extra llm --extra dev
 export HF_HOME="$PWD/data/interim/hf-cache"
 uv run --locked --extra llm python - <<'PY'
+import yaml
 from huggingface_hub import snapshot_download
 
-from urban_computing.llm.runner import APERTUS_MODEL_ID, APERTUS_REVISION
+from urban_computing.llm.runner import STUDY_CONFIG, model_revision
 
+settings = yaml.safe_load(STUDY_CONFIG.read_text(encoding="utf-8"))["llm"]
 snapshot_download(
-    APERTUS_MODEL_ID,
-    revision=APERTUS_REVISION,
+    settings["model_id"],
+    revision=model_revision(settings),
     allow_patterns=["*.json", "*.jinja", "*.safetensors"],
 )
 PY
@@ -59,7 +62,8 @@ on the allocated GPU with Hugging Face offline mode enabled.
 
 Submit the same array again to resume. Each task locks its output file and skips
 question IDs with complete records. It removes an unterminated final record before
-continuing. Use a fresh `--out-dir` for changes to the questions, dataset, or prompts.
+continuing. Use a fresh `--out-dir` for changes to the model revision, questions, dataset,
+or prompts.
 Temperature 0.0 uses greedy decoding. Temperature 0.7 uses sampling and resets the
 configured seed before each question so the result is independent of earlier
 completions. Repeatability checks use the same GPU type and software environment.

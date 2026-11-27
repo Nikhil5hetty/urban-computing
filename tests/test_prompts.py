@@ -107,6 +107,7 @@ def test_mock_cli_matrix_is_reproducible_and_parseable(questions_path, tmp_path,
         assert [row["question_id"] for row in records] == ["q0", "q1"]
         for row in records:
             assert row["mock"]
+            assert row["model_revision"] == config.get("model_revision", runner.APERTUS_REVISION)
             assert row["parse_status"] == "json"
             assert row["elapsed_seconds"] == 0.0
             assert len(row["prompt_hash"]) == 64
@@ -120,6 +121,8 @@ def test_runner_uses_both_evidence_sources_and_resume(questions_path, tmp_path, 
     config = yaml.safe_load(runner.STUDY_CONFIG.read_text(encoding="utf-8"))
     config["data"]["processed_dir"] = str(tmp_path)
     config["connections"]["hub_stop_ids"] = {"Olten": ["8500218"]}
+    revision = "a" * 40
+    config["llm"]["model_revision"] = revision
     config_path = tmp_path / "study.yaml"
     config_path.write_text(yaml.safe_dump(config), encoding="utf-8")
     monkeypatch.setattr(runner, "STUDY_CONFIG", config_path)
@@ -151,8 +154,8 @@ def test_runner_uses_both_evidence_sources_and_resume(questions_path, tmp_path, 
     prompts = []
     fail = True
 
-    def model_generator(model_id, revision, temperature, seed, max_new_tokens):
-        assert revision == runner.APERTUS_REVISION
+    def model_generator(model_id, loaded_revision, temperature, seed, max_new_tokens):
+        assert loaded_revision == revision
         assert model_id == config["llm"]["model_id"]
         assert temperature == 0.0
         assert seed == config["llm"]["seeds"][0]
@@ -194,6 +197,7 @@ def test_runner_uses_both_evidence_sources_and_resume(questions_path, tmp_path, 
         "share_missed": 0.75,
     }
     first, second = _records(path)
+    assert first["model_revision"] == second["model_revision"] == revision
     assert second["prompt_hash"] == hashlib.sha256(prompts[1].encode()).hexdigest()
     assert first["parse_status"] == "free_text"
     assert second["parse_status"] == "invalid_json"
@@ -210,6 +214,12 @@ def test_runner_uses_both_evidence_sources_and_resume(questions_path, tmp_path, 
     monkeypatch.setattr(runner, "_model_generator", unexpected_load)
     before = fuzzy_path.read_bytes()
     assert runner.run(questions_path, "fuzzy_grounded", model, 0.0, seed, output) == fuzzy_path
+    assert fuzzy_path.read_bytes() == before
+
+    config["llm"]["model_revision"] = "b" * 40
+    config_path.write_text(yaml.safe_dump(config), encoding="utf-8")
+    with pytest.raises(ValueError, match="different settings"):
+        runner.run(questions_path, "fuzzy_grounded", model, 0.0, seed, output)
     assert fuzzy_path.read_bytes() == before
 
 
@@ -239,7 +249,7 @@ def test_apertus_greedy_smoke():
     settings = yaml.safe_load(Path(runner.STUDY_CONFIG).read_text(encoding="utf-8"))["llm"]
     generate, _ = runner._model_generator(
         settings["model_id"],
-        runner.APERTUS_REVISION,
+        runner.model_revision(settings),
         0.0,
         settings["seeds"][0],
         settings["max_new_tokens"],

@@ -36,6 +36,16 @@ APERTUS_REVISION = "b946d40447b2b597999b9c86d44bee0b452c919f"
 _MOCK_TEXT = "Few connections are missed."
 
 
+def model_revision(settings: dict) -> str:
+    """Resolve the full Hugging Face commit hash from the study's `llm` settings."""
+    model_id = settings["model_id"]
+    fallback = APERTUS_REVISION if model_id == APERTUS_MODEL_ID else None
+    revision = settings.get("model_revision", fallback)
+    if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise ValueError(f"llm.model_revision must be a full commit hash for {model_id!r}")
+    return revision
+
+
 def _read_questions(questions_path: Path, config: dict) -> dict[str, Question]:
     questions = {}
     with questions_path.open(encoding="utf-8") as stream:
@@ -259,13 +269,14 @@ def run(
         raise ValueError(f"Invalid model ID: {model_id!r}")
     if not math.isfinite(temperature) or temperature < 0:
         raise ValueError("Temperature must be finite and nonnegative")
-    if not mock and model_id != APERTUS_MODEL_ID:
+    config = yaml.safe_load(STUDY_CONFIG.read_text(encoding="utf-8"))
+    llm = config["llm"]
+    revision = model_revision(llm) if model_id == llm["model_id"] else None
+    if not mock and revision is None:
         raise ValueError(f"No pinned revision for {model_id!r}")
 
-    config = yaml.safe_load(STUDY_CONFIG.read_text(encoding="utf-8"))
     questions = _read_questions(questions_path, config)
-    max_new_tokens = int(config["llm"]["max_new_tokens"])
-    revision = APERTUS_REVISION if model_id == APERTUS_MODEL_ID else None
+    max_new_tokens = int(llm["max_new_tokens"])
     temperature = float(temperature)
     path = out_dir / condition / model_id.replace("/", "--") / str(temperature) / f"{seed}.jsonl"
     settings = {
@@ -291,9 +302,10 @@ def run(
             render = partial(_mock_prompt, condition=condition, config=config)
             generate = _mock_generate
         else:
+            assert revision is not None
             render = _prompt_renderer(condition, config)
             generate, backend = _model_generator(
-                model_id, APERTUS_REVISION, temperature, seed, max_new_tokens
+                model_id, revision, temperature, seed, max_new_tokens
             )
             versions.update(
                 {name: metadata.version(name) for name in ("numpy", "pandas", "pyarrow")}
