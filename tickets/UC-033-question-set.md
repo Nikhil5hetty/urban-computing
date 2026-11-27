@@ -3,7 +3,7 @@ id: UC-033
 title: Fixed evaluation question set
 epic: assistant
 milestone: M2
-status: todo
+status: in-progress
 owner: agent
 estimate_h: 2
 depends_on: [UC-031, UC-032]        # hard: needs merged code
