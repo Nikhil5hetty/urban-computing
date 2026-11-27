@@ -349,9 +349,22 @@ explanation is faithful by construction (invariant I4).
      risk; more than 1 in 4 to 1 in 3 → risky. These are design choices (no external source).
    - The words are monotone, so later arrivals never give a safer word (tested).
 5. **Explanation.** Every stated sentence has truth ≥ β (`mining.beta`).
-   - First, the core quantifier with the highest truth μ_Q(p_miss), if that truth is ≥ β:
-     "With 4 minutes to change, few of your connections at Olten are missed." It carries
-     n complete rows and coverage 1.
+   - First, **always** a sentence on the passenger's own connections (or arrivals in the
+     fallback):
+     - the core quantifier with the highest truth μ_Q(p_miss), if that truth is ≥ β:
+       "With 4 minutes to change, few of your connections at Olten are missed." It carries
+       n complete rows and coverage 1;
+     - otherwise the **measured share**: "With 4 minutes to change, 12 of your 40
+       connections at Olten (30%) were missed." This uses the crisp count k: slack < 0
+       (D-023), or in the fallback delay ≥ margin (arriving after a punctual departure).
+       Its truth is 1, because it is a crisp statement that `verify_answer` rebuilds
+       exactly.
+     - Rationale: the core quantifiers leave **gaps** in [0, 1] where no word reaches β = 0.6:
+       p_miss ∈ [0.21, 0.38] and [0.62, 0.70] (μ_few(0.25) = 0.40, μ_about_half(0.35) =
+       0.33, μ_most(0.65) = 0.43). Without the measured share, many "at risk" and "risky"
+       answers would have no sentence about the passenger's connections. I4 reports how
+       many answers fall in these gaps (`vocabulary_gap_answers`), a CWW finding for the
+       discussion (PM review of #56).
    - Then up to three valid summaries (truth ≥ β, Qc > 0, not small_n) with the highest Qc,
      mined (§4) with **the hub's arrivals as the segment**, so a line's coverage is its share
      at that hub. The restrictions are the question's line, its time band, its weekday group
@@ -359,7 +372,8 @@ explanation is faithful by construction (invariant I4).
    - The crisp official view (UC-032) is attached as `crisp_decision` and `crisp_sentences`.
 
 **Invariant I4** (`evaluation/invariants.py`). `verify_answer` recomputes p_miss, the decision
-word and every explanation's truth from the data, to < 1e-9. The I4 provider answers the
+word and every explanation's truth from the data, to < 1e-9. It also requires the own sentence,
+and rebuilds a measured-share sentence exactly (only allowed in a vocabulary gap). The I4 provider answers the
 question set (eval/questions.jsonl, or one question per observed hub × line × time band ×
 margin, up to 300) on the processed tables, or on the fixture in sample mode, and passes iff
 every answer verifies.

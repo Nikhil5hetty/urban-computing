@@ -175,8 +175,13 @@ def _p_miss(
     arrivals: pd.DataFrame,
     vocab: Vocabulary,
     config: dict,
-) -> tuple[float, int, bool, str]:
-    """(p_miss, n complete rows, fallback, summarizer) for the question."""
+) -> tuple[float, int, bool, str, int]:
+    """(p_miss, n complete rows, fallback, summarizer, k) for the question.
+
+    k = crisp count of the n rows that were missed: personal slack < 0 (D-023 crisp
+    `missed`), or in the fallback arrival delay >= margin (arrives after a punctual
+    departure; the region where late_for_my_transfer = 1).
+    """
     seg = connection_segment(question, connections)
     if len(seg) >= FALLBACK_MIN_CONNECTIONS:
         min_transfer = float(config["connections"]["min_transfer_minutes_default"])
@@ -185,7 +190,8 @@ def _p_miss(
         n = int((~np.isnan(s)).sum())
         if n == 0:
             raise NoDataError("no matching connection has a known gap")
-        return fuzzy_proportion(mu), n, False, "connection_slack_minutes:missed"
+        k = int((s[~np.isnan(s)] < 0).sum())
+        return fuzzy_proportion(mu), n, False, "connection_slack_minutes:missed", k
     own = own_arrivals(hub_arrivals(question, arrivals, config), question)
     delay = own["delay_min"].astype("float64").to_numpy()
     n = int((~np.isnan(delay)).sum())
@@ -195,7 +201,8 @@ def _p_miss(
             f"{question.arr_line or question.arr_product} at {question.hub}"
         )
     mu = vocab.late_for_my_transfer(question.margin_min)(delay)
-    return fuzzy_proportion(mu), n, True, "arrival_delay_minutes:late_for_my_transfer"
+    k = int((delay[~np.isnan(delay)] >= question.margin_min).sum())
+    return fuzzy_proportion(mu), n, True, "arrival_delay_minutes:late_for_my_transfer", k
 
 
 def _best_quantifier(p: float, vocab: Vocabulary) -> tuple[str, float]:
@@ -216,6 +223,24 @@ def _own_sentence(question: Question, q: str, fallback: bool) -> str:
         )
     where = f"of your connections at {question.hub}"
     return f"With {m} minutes to change, {qt.lower()} {where} are missed."
+
+
+COUNT = "count"  # Explanation.quantifier of the measured-share sentence (vocabulary gap)
+
+
+def count_sentence(question: Question, k: int, n: int, fallback: bool) -> str:
+    """Measured share when no core quantifier reaches beta (PM review of #56), e.g.
+    "With 4 minutes to change, 8 of your 25 connections at Olten (32%) were missed." """
+    m = f"{question.margin_min:g}"
+    pct = f"{round(100 * k / n)}%"
+    if fallback:
+        what = question.arr_line or question.arr_product
+        return (
+            f"With {m} minutes to change, {k} of {n} {what} arrivals at {question.hub} ({pct}) "
+            "were too late for your transfer."
+        )
+    where = f"of your {n} connections at {question.hub}"
+    return f"With {m} minutes to change, {k} {where} ({pct}) were missed."
 
 
 def _config_hash(config: dict) -> str:
@@ -242,18 +267,35 @@ def answer(
     (UC-032) when arrivals exist. Raises NoDataError if nothing matches the question.
     """
     beta = float(config["mining"]["beta"])
-    p_miss, n, fallback, summarizer = _p_miss(question, connections, arrivals, vocab, config)
+    p_miss, n, fallback, summarizer, k = _p_miss(question, connections, arrivals, vocab, config)
     decision = decide(p_miss, decision_sets(config))
 
+    # Every answer carries a sentence on the passenger's own connections / arrivals: the
+    # best core quantifier if its truth reaches beta, else the measured share (the core
+    # quantifiers leave gaps in [0, 1], e.g. p in [0.21, 0.38]; PM review of #56).
     explanations: list[Explanation] = []
     q, truth = _best_quantifier(p_miss, vocab)
-    if truth >= beta:
+    own = OWN_ARRIVALS if fallback else OWN_CONNECTIONS
+    if truth < beta:
+        explanations.append(
+            Explanation(
+                sentence=count_sentence(question, k, n, fallback),
+                quantifier=COUNT,
+                summarizer=summarizer,
+                restriction=own,
+                truth=1.0,  # a crisp, exactly recomputed statement (verify_answer)
+                coverage=1.0,
+                quality=None,
+                n=n,
+            )
+        )
+    else:
         explanations.append(
             Explanation(
                 sentence=_own_sentence(question, q, fallback),
                 quantifier=q,
                 summarizer=summarizer,
-                restriction=OWN_ARRIVALS if fallback else OWN_CONNECTIONS,
+                restriction=own,
                 truth=truth,
                 coverage=1.0,
                 quality=truth,
@@ -329,11 +371,14 @@ def verify_answer(
 ) -> bool:
     """Recompute every explanation's truth from the data; True iff all match (I4).
 
-    Also recomputes p_miss and the decision word from it, and checks that no explanation
-    states a truth below beta.
+    Also recomputes p_miss and the decision word from it, requires a sentence on the
+    passenger's own connections / arrivals, rebuilds a measured-share sentence ("k of n")
+    exactly from the data, and checks that no explanation states a truth below beta.
     """
     question, beta = ans.question, float(config["mining"]["beta"])
-    p_miss, _, fallback, _ = _p_miss(question, connections, arrivals, vocab, config)
+    p_miss, n, fallback, _, k = _p_miss(question, connections, arrivals, vocab, config)
+    if not any(e.restriction in (OWN_CONNECTIONS, OWN_ARRIVALS) for e in ans.explanations):
+        return False
     if ans.p_miss is None or abs(p_miss - ans.p_miss) > tol or fallback != ans.provenance.fallback:
         return False
     if decide(p_miss, decision_sets(config)) != ans.decision:
@@ -344,6 +389,12 @@ def verify_answer(
     for e in ans.explanations:
         if e.truth < beta:
             return False
+        if e.quantifier == COUNT:
+            if e.sentence != count_sentence(question, k, n, fallback) or e.n != n:
+                return False
+            if _best_quantifier(p_miss, vocab)[1] >= beta:  # count only in the vocabulary gap
+                return False
+            continue
         qfn = vocab.quantifiers["core"][e.quantifier]
         if e.restriction in (OWN_CONNECTIONS, OWN_ARRIVALS):
             truth = float(np.asarray(qfn(np.asarray(p_miss))))

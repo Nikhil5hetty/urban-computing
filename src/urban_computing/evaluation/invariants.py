@@ -106,7 +106,7 @@ def faithful_explanations(ctx: registry.Context) -> registry.InvariantResult:
     if hub_ids:
         config["connections"]["hub_stop_ids"] = hub_ids
     vocab = load_vocabulary(Path(ctx.paths.get("vocabulary", "config/vocabulary.yaml")))
-    answered, failed, sentences = 0, [], 0
+    answered, failed, sentences, gap = 0, [], 0, 0
     for q in _i4_questions(connections, config):
         try:
             ans = answer(q, connections, arrivals, vocab, config)
@@ -114,8 +114,11 @@ def faithful_explanations(ctx: registry.Context) -> registry.InvariantResult:
             continue
         answered += 1
         sentences += len(ans.explanations)
+        gap += any(e.quantifier == "count" for e in ans.explanations)
         if not verify_answer(ans, connections, arrivals, vocab, config):
             failed.append(q.model_dump())
+    # answers whose p_miss falls where no core quantifier reaches beta (measured-share
+    # sentence instead; a CWW finding for the discussion, PM review of #56)
     details = {"answers": answered, "explanation_sentences": sentences, "failed": failed[:20],
-               "n_failed": len(failed)}  # fmt: skip
+               "n_failed": len(failed), "vocabulary_gap_answers": gap}  # fmt: skip
     return registry.InvariantResult(answered > 0 and not failed, details)

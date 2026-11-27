@@ -227,6 +227,7 @@ def test_invariant_i4_registered_and_passes_on_fixture(tmp_path):
     result = registry.INVARIANTS["I4"](ctx)
     assert result.passed, result.details
     assert result.details["answers"] > 0 and result.details["n_failed"] == 0
+    assert 0 <= result.details["vocabulary_gap_answers"] <= result.details["answers"]
 
     # the borderline fixture segment: Zürich HB IC1, 13 x 3 min late, 12 on time
     arrivals, connections, hub_ids = ctx.cache["i4_tables"]
@@ -244,3 +245,71 @@ def test_methods_section_5_documents_the_rule():
     for token in ("p_miss", "margin", "actual gap", "−∞", "0.05", "0.30", "argmax", "cautious",
                   "20", "D-029", "I4"):  # fmt: skip
         assert token in sec5, token
+
+
+# --------------------------------------------------------------------- review #56: gaps
+
+
+def _connections_for(p_target: float, n: int = 40) -> pd.DataFrame:
+    """n connections of which round(p n) are clearly missed (slack -2) and the rest
+    clearly made (slack 2), with margin 4 and min transfer 2: p_miss = k / n exactly."""
+    k = round(p_target * n)
+    return conns([0.0] * k + [4.0] * (n - k))
+
+
+@pytest.mark.parametrize("p", [0.25, 0.30, 0.35, 0.65])
+def test_vocabulary_gap_still_explains_p_miss(p):
+    c, a = _connections_for(p), arrs([0.0] * 40)
+    ans = answer(Q(), c, a, VOCAB, CONFIG)
+    assert ans.p_miss == pytest.approx(p)
+    own = [e for e in ans.explanations if e.restriction == OWN_CONNECTIONS]
+    assert len(own) == 1, ans.explanations  # always a sentence on the own connections
+    e = own[0]
+    k = round(p * 40)
+    assert e.quantifier == "count" and e.n == 40
+    assert e.sentence == (
+        f"With 4 minutes to change, {k} of your 40 connections at Olten "
+        f"({round(100 * k / 40)}%) were missed."
+    )
+    assert all(x.truth >= BETA for x in ans.explanations)  # never a word below beta
+    assert verify_answer(ans, c, a, VOCAB, CONFIG)
+
+
+def test_count_sentence_verified_exactly_and_only_in_the_gap():
+    c, a = _connections_for(0.30), arrs([0.0] * 40)
+    ans = answer(Q(), c, a, VOCAB, CONFIG)
+    first = ans.explanations[0]
+    wrong = first.model_copy(update={"sentence": first.sentence.replace("12 of", "11 of")})
+    assert not verify_answer(ans.model_copy(update={"explanations": [wrong]}), c, a, VOCAB,
+                             CONFIG)  # fmt: skip
+    assert not verify_answer(ans.model_copy(update={"explanations": ans.explanations[1:]}), c,
+                             a, VOCAB, CONFIG)  # own sentence missing  # fmt: skip
+    # outside the gap the fuzzy word is used, and a count sentence would be rejected
+    c2 = _connections_for(0.0)
+    ok = answer(Q(), c2, a, VOCAB, CONFIG)
+    assert ok.explanations[0].quantifier == "few"
+    fake = first.model_copy(update={"sentence": "With 4 minutes to change, 0 of your 40 "
+                                    "connections at Olten (0%) were missed."})  # fmt: skip
+    assert not verify_answer(ok.model_copy(update={"explanations": [fake]}), c2, a, VOCAB, CONFIG)
+
+
+def test_vocabulary_gap_fallback_wording():
+    few = conns([4.0] * 5)  # < 20 connections -> arrivals fallback
+    delays = [5.0] * 12 + [0.0] * 28  # 30 % arrive >= 4 min late
+    ans = answer(Q(), few, arrs(delays), VOCAB, CONFIG)
+    assert ans.provenance.fallback and ans.p_miss == pytest.approx(0.30)
+    e = ans.explanations[0]
+    assert e.restriction == OWN_ARRIVALS and e.quantifier == "count"
+    assert e.sentence == ("With 4 minutes to change, 12 of 40 IC1 arrivals at Olten (30%) were "
+                          "too late for your transfer.")  # fmt: skip
+    assert verify_answer(ans, few, arrs(delays), VOCAB, CONFIG)
+
+
+def test_every_answer_has_an_own_sentence_across_p():
+    a = arrs([0.0] * 40)
+    for k in range(0, 41):
+        c = conns([0.0] * k + [4.0] * (40 - k))
+        ans = answer(Q(), c, a, VOCAB, CONFIG)
+        assert any(e.restriction == OWN_CONNECTIONS for e in ans.explanations), k
+        assert all(e.truth >= BETA for e in ans.explanations)
+        assert verify_answer(ans, c, a, VOCAB, CONFIG)
