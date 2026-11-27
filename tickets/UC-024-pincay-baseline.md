@@ -23,11 +23,11 @@ and restrictions are added.
 evaluation runner, plus the same table per half.
 
 ## Acceptance criteria
-- [ ] Table has exactly 12 rows per half, layout like Pincay et al. Table 1
-- [ ] Paper text calls it a "methodological baseline" (D-003); no comparison of numbers
+- [x] Table has exactly 12 rows per half, layout like Pincay et al. Table 1
+- [x] Paper text calls it a "methodological baseline" (D-003); no comparison of numbers
       with their traffic-message data
-- [ ] Registered as an experiment in the project runner (UC-053)
-- [ ] D-028: use Pincay et al.'s own quantifier curves from their Fig. 2 (few [−∞,−∞,0.2,0.4], about_half [0.2,0.4,0.6,0.8], most [0.6,0.8,+∞,+∞]; methods §1) via a config override, not our study vocabulary; state the difference in the table caption (UC-002)
+- [x] Registered as an experiment in the project runner (UC-053)
+- [x] D-028: use Pincay et al.'s own quantifier curves from their Fig. 2 (few [−∞,−∞,0.2,0.4], about_half [0.2,0.4,0.6,0.8], most [0.6,0.8,+∞,+∞]; methods §1) via a config override, not our study vocabulary; state the difference in the table caption (UC-002)
 
 ## Tests
 `tests/test_baseline.py` on the fixture.
@@ -53,3 +53,14 @@ Ist-Daten arrivals and the study's four arrival-delay membership functions.
 **Table caption.** Methodological baseline for Swiss train arrivals. Truth uses the
 quantifier curves from Pincay et al. (2021, Fig. 2, p. 172), whose breakpoints differ
 from those of the main study vocabulary (D-028). A summary is valid at truth ≥ 0.6.
+
+
+## Review scope exceptions
+
+The PM review explicitly requested manuscript integration to complete this ticket's
+acceptance criteria. `paper/sections/concept.tex` now contains the methodological
+baseline description, and `paper/sections/results.tex` contains the baseline layout
+and caption explaining the Figure 2 quantifier difference. Study values remain pending
+Batch A and must come from runner outputs; the table uses explicit pending placeholders.
+The dedicated `config/vocabulary.yaml` override is authorized by accepted D-028 and
+the owner's review; the main-study curves are unchanged.

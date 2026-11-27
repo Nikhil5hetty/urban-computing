@@ -9,3 +9,22 @@ faithful explanation (docs/methods.md sections 1--6).}
 
 \subsection{Decision and Explanation}
 \placeholder{UC-071.}
+
+
+\subsection{Methodological Baseline}
+\label{sec:methodological-baseline}
+We apply the unrestricted linguistic-summary truth computation of
+\citet[Eq.~2]{pincay2021} as a methodological baseline for Swiss train arrival delays.
+The input is the study's measured Ist-Daten arrivals, without a passenger-specific
+restriction, and the summarizers are the study's four arrival-delay words: on time,
+slightly late, late and very late. For each word, its fuzzy proportion is evaluated
+with the quantifiers few, about half and most. We compute these scores for the pooled
+network and separately for each study half.
+
+The baseline uses the dedicated \texttt{pincay2021} vocabulary configuration, whose
+curves follow \citet[Fig.~2, p.~172]{pincay2021}. The main study retains its own
+quantifier breakpoints (D-028). A summary is valid when its truth is at least the
+configured mining threshold $\beta$; equality is included. The default follows
+\citet[Section~\citednum{3.2}, p.~172]{pincay2021}, while configuration overrides also apply to
+this baseline. This is a methodological comparison on Swiss arrival data, not a
+reproduction or numerical comparison of the paper's traffic-message results.

@@ -22,6 +22,32 @@
   \end{tabular}
 \end{table}
 
+\begin{table}[h]
+  \caption{Methodological baseline for Swiss train arrivals. Each cell is the truth of
+  an unrestricted quantifier--delay-word summary. The baseline uses the quantifier
+  curves of \citet[Fig.~2, p.~172]{pincay2021}, rather than the main study's own
+  breakpoints (D-028); the arrival-delay summarizers are those of the study.
+  Validity uses the inclusive configured threshold $\beta$.
+  Values await the study-data evaluation; dashes denote pending results, not zero truth.}
+  \label{tab:baseline-pincay}
+  \begin{tabular}{llll}
+    \toprule
+    Arrival-delay word & Few & About half & Most \\
+    \midrule
+    On time & -- & -- & -- \\
+    Slightly late & -- & -- & -- \\
+    Late & -- & -- & -- \\
+    Very late & -- & -- & -- \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Table~\ref{tab:baseline-pincay} reserves the pooled baseline layout. Its values must be
+populated from the runner's \texttt{baseline\_pincay.csv}; the corresponding
+\texttt{baseline\_pincay\_first.csv} and \texttt{baseline\_pincay\_second.csv} provide
+per-half results for the empirical analysis. No study-data baseline values are yet
+reported here.
+
 \subsubsection{SRQ1: Is the answer about my trip?}
 \placeholder{UC-072.}
 
