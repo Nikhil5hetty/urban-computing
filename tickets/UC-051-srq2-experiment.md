@@ -3,7 +3,7 @@ id: UC-051
 title: "SRQ2 experiment: crisp official view vs perception-aware verdicts"
 epic: evaluation
 milestone: M2
-status: todo
+status: in-progress
 owner: agent
 estimate_h: 3
 depends_on: [UC-031, UC-032, UC-053]        # hard: needs merged code
