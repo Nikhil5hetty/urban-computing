@@ -3,7 +3,7 @@ id: UC-023
 title: Summary miner over segments (Q x S x R enumeration)
 epic: fuzzy
 milestone: M1
-status: in-progress
+status: done
 owner: agent
 estimate_h: 3
 depends_on: [UC-020, UC-021]        # hard: needs merged code
