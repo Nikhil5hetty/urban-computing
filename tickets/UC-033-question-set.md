@@ -3,7 +3,7 @@ id: UC-033
 title: Fixed evaluation question set
 epic: assistant
 milestone: M2
-status: in-progress
+status: done
 owner: agent
 estimate_h: 2
 depends_on: [UC-031, UC-032]        # hard: needs merged code
@@ -33,3 +33,12 @@ drawn from segments that exist in the data. Used by SRQ2, SRQ3 and the prototype
 
 ## Tests
 `tests/test_questions.py` on the fixture (stratification, determinism).
+
+## Real-data run
+
+With the October study's processed `arrivals.parquet` and `connections.parquet` and the
+local atlas export in place, run `make questions`. The command writes
+`eval/questions.jsonl` and `eval/questions_manifest.json`. Check the manifest for the
+realized stratum counts, at least 120 questions, at least 15 borderline questions
+and at least 20 measured pairs per question. Commit the generated question set in
+the real-data Batch B PR as described in `docs/REALDATA_RUNS.md`.
