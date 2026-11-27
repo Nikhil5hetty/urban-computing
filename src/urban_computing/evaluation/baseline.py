@@ -8,15 +8,8 @@ import pandas as pd
 from urban_computing.data.arrivals import build_arrivals
 from urban_computing.evaluation.registry import Context, Table, table
 from urban_computing.fuzzy.truth import fuzzy_proportion
-from urban_computing.fuzzy.vocabulary import Trapezoid, load_vocabulary
+from urban_computing.fuzzy.vocabulary import load_vocabulary
 
-# D-028, methods §1. Breakpoints read from Pincay et al., Fig. 2, p. 172.
-_QUANTIFIER_OVERRIDE = {
-    "few": (None, None, 0.2, 0.4),
-    "about_half": (0.2, 0.4, 0.6, 0.8),
-    "most": (0.6, 0.8, None, None),
-}
-_BETA = 0.6  # Pincay et al., §4.2, Table 1
 _NAME = "baseline_pincay"
 
 
@@ -46,9 +39,7 @@ def _baseline(ctx: Context, name: str, half: str | None = None) -> Table:
         else arrivals.loc[arrivals["half"] == half, "delay_min"]
     )
     vocabulary = load_vocabulary(Path(ctx.paths["vocabulary"]))
-    vocabulary.quantifiers["core"] = {
-        word: Trapezoid(*bounds) for word, bounds in _QUANTIFIER_OVERRIDE.items()
-    }
+    beta = float(ctx.config["mining"]["beta"])  # Pincay et al., §3.2, p. 172: 0.6
     summarizers = vocabulary.summarizers["arrival_delay_minutes"]
     # Eq. (2), p. 170 (methods §2). Reuse the sigma-count across the three quantifiers.
     proportions = {
@@ -56,7 +47,7 @@ def _baseline(ctx: Context, name: str, half: str | None = None) -> Table:
         for word, membership in summarizers.items()
     }
     rows = []
-    for quantifier, membership in vocabulary.quantifiers["core"].items():
+    for quantifier, membership in vocabulary.quantifiers["pincay2021"].items():
         for summarizer, proportion in proportions.items():
             truth = float(membership(proportion))
             # Preserve equality at beta when a trapezoid ramp rounds just below it.
@@ -65,7 +56,7 @@ def _baseline(ctx: Context, name: str, half: str | None = None) -> Table:
                     "quantifier": quantifier,
                     "summarizer": summarizer,
                     "truth": None if isnan(truth) else truth,
-                    "valid": truth >= _BETA or isclose(truth, _BETA, rel_tol=0, abs_tol=1e-15),
+                    "valid": truth >= beta or isclose(truth, beta, rel_tol=0, abs_tol=1e-15),
                 }
             )
     return Table(name, rows)
