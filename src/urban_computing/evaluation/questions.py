@@ -25,8 +25,10 @@ _BORDERLINE_DISTANCE = 0.05
 _ROUTE_COLUMNS = {"arr_line": "line", "arr_product": "product"}
 
 
-def _official_cohorts(arrivals: pd.DataFrame, config: dict) -> set[tuple[str, str, str, str, str]]:
-    """Index route segments with at least one arrival measured by the crisp baseline."""
+def _official_cohorts(
+    arrivals: pd.DataFrame, config: dict
+) -> tuple[set[tuple[str, str, str, str, str]], dict[str, int]]:
+    """Index measured crisp cohorts and count arrival rows retained after each filter."""
     settings = config["connections"]
     hub_keys = {}
     for hub in settings["hubs"]:
@@ -36,12 +38,15 @@ def _official_cohorts(arrivals: pd.DataFrame, config: dict) -> set[tuple[str, st
         _stop_key(arrivals["stop_id"]) if settings.get("hub_stop_ids") else arrivals["stop_name"]
     )
     study_keys = {key for keys in hub_keys.values() for key in keys}
-    keep = (
-        stop_keys.isin(study_keys)
-        & arrivals["time_band"].isin(config["time_bands"])
-        & ~arrivals["cancelled"].astype(bool)
-        & arrivals["delay_min"].notna()
-    )
+    counts = {"input": len(arrivals)}
+    keep = stop_keys.isin(study_keys)
+    counts["at_hubs"] = int(keep.sum())
+    keep &= arrivals["time_band"].isin(config["time_bands"])
+    counts["in_time_bands"] = int(keep.sum())
+    keep &= ~arrivals["cancelled"].astype(bool)
+    counts["uncancelled"] = int(keep.sum())
+    keep &= arrivals["delay_min"].notna()
+    counts["measured"] = int(keep.sum())
     measured = arrivals.loc[keep, ["time_band", "weekday", "line", "product"]].assign(
         stop_key=stop_keys.loc[keep]
     )
@@ -56,13 +61,13 @@ def _official_cohorts(arrivals: pd.DataFrame, config: dict) -> set[tuple[str, st
                     (hub, band, group, field, route)
                     for band, route in routes.itertuples(index=False, name=None)
                 )
-    return cohorts
+    return cohorts, counts
 
 
 def _question_set(
     connections: pd.DataFrame, config: dict, seed: int, *, arrivals: pd.DataFrame | None = None
 ) -> tuple[list[Question], dict]:
-    """Sample eligible questions and report connection rows and pre-margin segments."""
+    """Sample eligible questions and report input filters and pre-margin segments."""
     settings = config["connections"]
     bands = config["time_bands"]
     vocab = load_vocabulary(Path(config.get("paths", {}).get("vocabulary", VOCAB_PATH)))
@@ -76,7 +81,9 @@ def _question_set(
     retained = measured.loc[
         measured["hub"].isin(settings["hubs"]) & measured["time_band"].isin(bands)
     ]
-    official = _official_cohorts(arrivals, config) if arrivals is not None else None
+    official, arrival_counts = None, None
+    if arrivals is not None:
+        official, arrival_counts = _official_cohorts(arrivals, config)
     excluded = {"missing_route": 0, "insufficient_connections": 0, "no_official_cohort": 0}
     eligible = 0
     strata = defaultdict(list)
@@ -205,6 +212,8 @@ def _question_set(
         "segments": segments,
         "versions": {"numpy": np.__version__, "pandas": pd.__version__},
     }
+    if arrival_counts is not None:
+        manifest["arrival_counts"] = arrival_counts
     return questions, manifest
 
 

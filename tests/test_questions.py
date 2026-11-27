@@ -121,12 +121,24 @@ def test_cli_writes_question_set_and_manifest(tables, study, tmp_path, monkeypat
         ],
         ignore_index=True,
     )
+    off_hub = 20  # The fixture's off-hub arrivals share a hub's display name.
     if mixed_ids:
         # UC-014 can resolve these feeders by SLOID while ARRIVALS keeps the
         # alternate BPUIC. Losing a feeder from the official cohort must not
         # remove a measured connection from the fuzzy cohort.
-        first = arrivals.groupby(["stop_id", "time_band", "line"]).head(1).index
+        at_hubs = arrivals.loc[arrivals["stop_id"].ne("9999999")]
+        first = at_hubs.groupby(["stop_id", "time_band", "line"]).head(1).index
         arrivals.loc[first, "stop_id"] = "9999998"
+        off_hub += len(first)
+    arrivals = pd.concat(
+        [
+            arrivals,
+            factories.arrivals([0.0], stop_id="850000100", time_band="outside"),
+            factories.arrivals([None], stop_id="850000100"),
+            factories.arrivals([None], stop_id="850000100", cancelled=False),
+        ],
+        ignore_index=True,
+    )
     ids = {hub: [f"850000{i}"] for i, hub in enumerate(study["connections"]["hubs"], 1)}
 
     def resolve(atlas_path, hubs):
@@ -151,6 +163,13 @@ def test_cli_writes_question_set_and_manifest(tables, study, tmp_path, monkeypat
     assert manifest["seed"] == study["study"]["seed"]
     assert manifest["n_questions"] == len(questions) >= 120
     assert manifest["n_borderline"] == len(questions)
+    assert manifest["arrival_counts"] == {
+        "input": len(arrivals),
+        "at_hubs": len(arrivals) - off_hub,
+        "in_time_bands": len(arrivals) - off_hub - 1,
+        "uncancelled": len(arrivals) - off_hub - 2,
+        "measured": len(arrivals) - off_hub - 3,
+    }
     assert manifest["connection_counts"] == {
         "input": len(pairs),
         "measured": len(pairs) - 28,
@@ -200,7 +219,7 @@ def test_normalizes_network_arrivals_once(tables, study, monkeypatch):
         hub: [f"850000{i}"] for i, hub in enumerate(study["connections"]["hubs"], 1)
     }
     seed = study["study"]["seed"]
-    expected = _question_set(pairs, study, seed, arrivals=arrivals)
+    expected_questions, expected_manifest = _question_set(pairs, study, seed, arrivals=arrivals)
     outside_hubs = arrivals.loc[arrivals["stop_id"].eq("9999999")]
     network_arrivals = pd.concat(
         [arrivals, outside_hubs.loc[outside_hubs.index.repeat(5_000)]], ignore_index=True
@@ -215,7 +234,11 @@ def test_normalizes_network_arrivals_once(tables, study, monkeypatch):
 
     monkeypatch.setattr(crisp, "_stop_key", record_stop_keys)
     monkeypatch.setattr(question_sampling, "_stop_key", record_stop_keys)
-    assert _question_set(pairs, study, seed, arrivals=network_arrivals) == expected
+    expected_manifest["arrival_counts"]["input"] += len(network_arrivals) - len(arrivals)
+    assert _question_set(pairs, study, seed, arrivals=network_arrivals) == (
+        expected_questions,
+        expected_manifest,
+    )
     assert network_scans == 1
 
 
