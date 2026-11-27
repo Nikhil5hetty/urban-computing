@@ -3,7 +3,7 @@ id: UC-050
 title: "SRQ1 experiment: coverage, regional masking, ranking change"
 epic: evaluation
 milestone: M2
-status: todo
+status: done
 owner: agent
 estimate_h: 3
 depends_on: [UC-023, UC-053]        # hard: needs merged code
