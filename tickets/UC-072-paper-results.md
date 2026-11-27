@@ -32,6 +32,7 @@ results.json and docs/data-quality.md.
 - [ ] Every verdict matches results.json (including `inconclusive` / `not_supported`)
 - [ ] Total paper 16–30 pages incl. appendix
 - [ ] Nikhil reviewed and approved
+- [ ] Limitations state that SRQ2 connections exclude pairs with a cancelled feeder train and treat DST-hour pairs on 2026-10-25 as unknown (D-025) (PM review of #50)
 
 ## Tests
 I6 checker; LaTeX builds.
