@@ -3,7 +3,7 @@ id: UC-002
 title: Verify literature and extract exact quality-measure formulas
 epic: research
 milestone: M1
-status: todo
+status: done
 owner: pm
 estimate_h: 3
 depends_on: []        # hard: needs merged code
