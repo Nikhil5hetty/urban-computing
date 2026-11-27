@@ -3,7 +3,7 @@ id: UC-061
 title: Prototype installation guide and user manual (paper appendix)
 epic: prototype
 milestone: M3
-status: todo
+status: done
 owner: agent
 estimate_h: 1
 depends_on: [UC-060]        # hard: needs merged code

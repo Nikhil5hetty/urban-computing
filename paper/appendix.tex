@@ -1,4 +1,82 @@
 % UC-061: prototype installation guide and user manual (Human-IST guidelines).
+% Written from docs/INSTALL.md and docs/USER_MANUAL.md; keep the three in sync.
+% Invariant I6: no decimals or percentages here (thresholds are written as fractions).
 \section{Prototype: Installation and User Manual}
 \label{app:prototype}
-\placeholder{UC-061: installation (docs/INSTALL.md) and user manual (docs/USER\_MANUAL.md).}
+
+\subsection{Installation}
+\label{app:install}
+The prototype is a Streamlit application in the project repository. Five commands go from
+a clean machine (macOS, Linux or Windows with WSL, with \texttt{git} and internet access) to
+the running application on the synthetic sample data:
+
+\begin{verbatim}
+curl -LsSf https://astral.sh/uv/install.sh | sh
+git clone https://github.com/Nikhil5hetty/urban-computing.git
+cd urban-computing
+uv sync
+uv run streamlit run app/main.py -- --sample
+\end{verbatim}
+
+The last command prints a local address to open in a browser; a yellow banner marks the
+synthetic sample. With the processed real data in place (\texttt{make data-arrivals},
+\texttt{make data-connections}), the application starts without \texttt{--sample}. The
+application never calls a language model.
+
+\subsection{User Manual}
+\label{app:manual}
+
+\subsubsection*{Question form} In the sidebar the user chooses the station where they change
+trains (one of the study's hubs), the arriving and departing line, the time of day, the days
+and their time to change in minutes (Figure~\ref{fig:app-form}). The answer updates
+immediately.
+
+\subsubsection*{Answer} A badge gives the decision word \emph{safe}, \emph{at risk} or
+\emph{risky} for the user's own time to change (Figure~\ref{fig:app-answer}). Below it,
+each explanation sentence shows:
+\begin{itemize}
+  \item its \emph{truth}, how well the sentence fits the data from $0$ to $1$, as a bar that
+        is green from $\frac{3}{5}$, amber from $\frac{3}{10}$ and red below; only sentences
+        with truth of at least $\frac{3}{5}$ are shown;
+  \item the number of observations it is based on;
+  \item its \emph{coverage}, how much of the station's traffic the sentence is about.
+\end{itemize}
+When none of the words \emph{few}, \emph{about half} or \emph{most} fits well enough, the
+assistant states the measured share of missed or nearly missed connections instead.
+
+\subsubsection*{Official view} The user's verdict and its sentence are shown next to the
+official punctuality view, which counts a train as punctual when it is less than three
+minutes late, regardless of the user's time to change (Figure~\ref{fig:app-official}).
+
+\subsubsection*{Chatbot view} For questions of the evaluation set, a cached answer written by a
+language model is shown with one coloured mark per claim: green true, amber partly true,
+red not supported, grey not checkable (Figure~\ref{fig:app-chatbot}).
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{figures/app_form.png}
+  \caption{Question form (sidebar) with the default question.}
+  \label{fig:app-form}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{figures/app_answer.png}
+  \caption{Answer: decision badge and explanation with truth bar, observations and
+  coverage.}
+  \label{fig:app-answer}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{figures/app_official.png}
+  \caption{The user's view next to the official punctuality view.}
+  \label{fig:app-official}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{figures/app_chatbot.png}
+  \caption{Chatbot view (empty until cached language-model answers exist).}
+  \label{fig:app-chatbot}
+\end{figure}
