@@ -136,7 +136,7 @@ class Answer(BaseModel):
             lines.append(f"{head} {crisp}".rstrip())
         if self.provenance.fallback:
             lines.append(
-                "Note: this is based on arrival delays only, because no matching "
+                "Note: this is based on arrival delays only, because too few matching "
                 "connections were found."
             )
         lines.append(f"Data period: {self.provenance.period}.")

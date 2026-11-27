@@ -122,7 +122,7 @@ def test_to_text_snapshot_fallback_and_several_explanations():
         "Why: Few of your connections at Olten are missed. (truth 0.74, based on 38 "
         "observations) About half of IC1 arrivals are slightly late. (truth 0.51, based on "
         "120 observations)\n"
-        "Note: this is based on arrival delays only, because no matching connections were "
+        "Note: this is based on arrival delays only, because too few matching connections were "
         "found.\n"
         "Data period: 2026-10-01..2026-10-28."
     )

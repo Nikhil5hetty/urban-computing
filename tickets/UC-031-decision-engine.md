@@ -3,7 +3,7 @@ id: UC-031
 title: Perception-aware connection-risk decision with faithful explanation
 epic: assistant
 milestone: M2
-status: todo
+status: done
 owner: agent
 estimate_h: 4
 depends_on: [UC-020, UC-021]        # hard: needs merged code
