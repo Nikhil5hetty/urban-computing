@@ -1,5 +1,88 @@
 % UC-071: Introduction (problem, research questions, contribution).
+% I6: no hand-typed decimals or percentages; results only via numbers.tex macros.
+% TODO(verify): add a verified source for the operators' 3-minute punctuality definition
+% (docs/literature.md has none yet); it is stated here as the study's crisp rule (D-007).
 \section{Introduction}
 \label{sec:intro}
-\placeholder{UC-071: problem statement, the main research question and SRQ1--SRQ3,
-contributions, paper outline.}
+
+A commuter standing on a platform in Olten has a simple question: \emph{Is my connection
+reliable? I have four minutes.} Public transport operators publish punctuality figures that
+seem to answer it. In Switzerland these figures rest on a crisp rule: a train counts as
+punctual if it arrives less than three minutes late, and the share of punctual trains is
+reported for the network as a whole. Such a figure is precise, but it answers a different
+question. It does not know which train the commuter arrives with, which train they want to
+catch, or how many minutes they have to change. A train that is two minutes late is
+punctual by the official rule and still makes the commuter miss a connection with a
+two-minute transfer. Passenger research points in the same direction: passengers judge
+``on time'' more strictly than the industry standard and expect a train to arrive within
+about one minute of the timetable \citep{transportfocus2015}.
+
+A natural interface for such questions is a conversational assistant. Large language models
+can turn tables of delay statistics into fluent answers such as ``most of your trains are
+slightly late''. Whether such sentences are \emph{true} for the data is a separate matter.
+Recent work checks quantified statements written by language models against their source
+tables with crisp truth conditions, for example ``most'' meaning ``more than half''
+\citep{eida2026}. Everyday quantifiers and adjectives, however, are vague: ``most'',
+``about half'' and ``slightly late'' hold to a degree. A crisp checker that declares ``most
+trains are late'' true as soon as a bare majority of trains is late cannot see the
+borderline cases in which a commuter would disagree.
+
+Fuzzy linguistic summaries compute such sentences, together with their degree of truth,
+directly from data \citep{yager1982,kacprzyk2009}. A summary such as ``few of your
+connections at Olten are missed'' has a truth value in $[0, 1]$ that can be recomputed from
+the measurements at any time. Quality measures add the questions of how much data a sentence
+rests on and how well it holds in each region \citep{hudec2018,hudec2022}. Linguistic
+summaries have been mined from road traffic data in the Human-IST line of work
+\citep{pincay2021}, which names the combination with quality measures and the regional view
+as future work. We take that step for public transport, and we put the summaries into the
+hands of a citizen: the summaries are not an add-on that describes an opaque decision, they
+\emph{are} the decision.
+
+This paper presents a \textbf{Swiss public-transport assistant}. Its answer to the
+commuter's question consists of a decision word (\emph{safe}, \emph{at risk} or
+\emph{risky}) and an explanation made of fuzzy linguistic summaries, computed from the
+operators' published actual arrival and departure times (Ist-Daten, published on
+opentransportdata.swiss). Because the decision word and the explanation sentences come from
+the same truth computation, the explanation is faithful by construction: every number in it
+can be recomputed from the data, and the assistant checks this for every answer it gives.
+
+\subsection{Research Questions}
+\label{sec:rq}
+The study is organised around one main research question and three sub-questions, each
+phrased as a question a citizen might ask. The hypotheses, their tests and their decision
+rules were registered before any real data was analysed (Section~\ref{sec:study}).
+
+\begin{description}
+  \item[Main RQ.] Can fuzzy linguistic summaries be the explainable core of a
+  citizen-facing assistant that answers questions about the reliability of Swiss
+  public-transport trips?
+  \item[SRQ1, ``Is the answer about my trip?''] With coverage and regional quality measures
+  (Hudec), which summaries still hold for a citizen's own line/station/time, and how often
+  do network-wide summaries mask local reality?
+  \item[SRQ2, ``At risk for whom?''] How often does the crisp official view give a
+  different connection verdict than a perception-aware view based on the passenger's
+  transfer margin?
+  \item[SRQ3, ``Can I trust the chatbot?''] Are LLM-written quantified claims faithful to
+  the data, does fuzzy grounding help, and where do crisp and fuzzy checkers disagree?
+\end{description}
+
+\subsection{Contributions}
+\label{sec:contributions}
+\begin{enumerate}
+  \item A \textbf{computing-with-words engine} that mines fuzzy linguistic summaries with
+  Hudec's coverage and quality measures from public Swiss operational data, with the
+  configuration of \citet{pincay2021} as a methodological baseline.
+  \item An \textbf{explainable assistant} whose decision word and explanation come from the
+  same truth computation, with a \emph{perception-aware} notion of ``late'' that depends on
+  the passenger's own time to change trains, and with the crisp official view next to it.
+  \item An \textbf{audit of language-model answers} that extends crisp verification of
+  quantified statements \citep{eida2026} to vague quantifiers, graded truth and real data,
+  and compares a crisp and a fuzzy checker on the same claims.
+\end{enumerate}
+
+Section~\ref{sec:related} reviews related work. Section~\ref{sec:concept} develops the
+concept: the vocabulary, the truth and quality of summaries, the perception-aware decision
+and its faithful explanation. Section~\ref{sec:prototype} presents the prototype and
+Section~\ref{sec:study} the empirical study of SRQ1--SRQ3. Sections~\ref{sec:discussion}
+to~\ref{sec:conclusion} discuss the results and their limitations and conclude.
+Appendix~\ref{app:prototype} documents how to install and use the prototype.

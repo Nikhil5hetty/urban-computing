@@ -1,11 +1,211 @@
-% UC-071: Concept part (CWW assistant design).
+% UC-071: Concept part (CWW assistant design). Source: docs/methods.md §1-§6, decisions
+% D-007, D-008, D-012, D-022, D-023, D-026-D-029. I6: no hand-typed decimals/percentages;
+% parameters are named symbolically (values in config/*.yaml and methods.md).
 \section{Concept: A Computing-with-Words Assistant}
 \label{sec:concept}
-\placeholder{UC-071: vocabulary, truth of summaries, quality measures, decision rule and
-faithful explanation (docs/methods.md sections 1--6).}
 
-\subsection{Vocabulary and Truth}
-\placeholder{UC-071.}
+The assistant answers a question of the form \emph{``I arrive at hub $h$ with line $a$, want
+to continue with line $b$, in time band $\tau$ on days $d$, and have $m$ minutes to change;
+is my connection reliable?''} Its answer consists of a decision word and an explanation. This
+section describes how both are computed from the operators' measurements, following the
+encoder--engine--decoder structure of computing with words (Table~\ref{tab:pipeline}).
 
-\subsection{Decision and Explanation}
-\placeholder{UC-071.}
+\begin{table}[h]
+  \caption{The assistant as a computing-with-words pipeline.}
+  \label{tab:pipeline}
+  \begin{tabular}{p{22mm}p{62mm}p{62mm}}
+    \toprule
+    Stage & Input & Output \\
+    \midrule
+    Encoder & measured arrivals and connections of the question's segment; the passenger's
+    time to change $m$ & membership degrees of each observation in fuzzy words such as
+    \emph{missed}, \emph{late}, \emph{late for my transfer} \\
+    CWW engine & membership degrees; quantifiers \emph{few}, \emph{about half},
+    \emph{most} & fuzzy proportions and the truth of quantified sentences, with coverage
+    and quality \\
+    Decoder & fuzzy proportion of missed connections & decision word \emph{safe},
+    \emph{at risk} or \emph{risky}, and the explanation sentences \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Vocabulary}
+\label{sec:vocabulary}
+Every word the assistant uses is a fuzzy set with a trapezoidal membership function
+$\mu(x)$, given by four breakpoints $a \le b \le c \le d$: the membership rises linearly from
+$0$ at $a$ to $1$ at $b$, stays $1$ up to $c$ and falls back to $0$ at $d$; open shoulders
+extend to $\pm\infty$. The vocabulary lives in a configuration file, so a change of meaning
+never requires a code change.
+
+\subsubsection*{Summarizers} Arrival delays are described by \emph{on time}, \emph{slightly
+late}, \emph{late} and \emph{very late}; the slack of a connection, the time left after the
+minimum transfer time, by \emph{missed}, \emph{tight} and \emph{comfortable}. The words of
+each attribute form a Ruspini partition: for every value their memberships sum to one, so no
+delay is left without a word and none is counted twice. One breakpoint is anchored in the
+official rule: \emph{on time} reaches zero exactly at the three-minute punctuality boundary,
+so the fuzzy word and the crisp rule agree on what is certainly not punctual. The other
+breakpoints are design choices of this study, documented with their rationale in the
+project's methods notes.
+
+\subsubsection*{Quantifiers} Proportions are described by the relative quantifiers \emph{few},
+\emph{about half} and \emph{most}, the same three words as in \citet{pincay2021}. Our
+breakpoints differ from the curves shown in their Figure~2 \citep[p.~172]{pincay2021}. When
+the vocabulary was fixed, those curves were available to us only as a figure, so we chose
+our own breakpoints and kept them once the figure had been read; changing them later would
+have reopened the already registered checker semantics. The baseline experiment uses
+Pincay et al.'s curves, and the difference is reported as a deviation. The quantifiers are
+not a partition: each sentence's truth is computed for one quantifier at a time, and some
+proportions fit no quantifier well (Section~\ref{sec:explanation}).
+
+\subsection{Truth of a Linguistic Summary}
+\label{sec:truth}
+For observations $x_1, \dots, x_n$, a summarizer $S$ and a quantifier $Q$, the fuzzy
+proportion of observations that are $S$ is the sigma-count
+\begin{equation}
+  p = \frac{1}{n} \sum_{i=1}^{n} \mu_S(x_i),
+\end{equation}
+and the truth of the simple summary ``$Q$ of the $x$ are $S$'' is $v = \mu_Q(p)$. With a
+restriction $R$ (``in the morning peak''), the proportion is taken among the observations
+that are $R$,
+\begin{equation}
+  p_R = \frac{\sum_{i} t\big(\mu_R(x_i), \mu_S(x_i)\big)}{\sum_{i} \mu_R(x_i)},
+\end{equation}
+with the product t-norm $t(u, w) = uw$, and $v = \mu_Q(p_R)$
+\citep[Eq.~(2)]{pincay2021}; \citep[Eqs.~(5)--(6)]{hudec2022}. Observations with a missing
+value are left out of both sums, and a restriction that holds for no observation has no
+defined truth. The implementation is vectorised and cross-checked against the independent
+Simpful library \citep{spolaor2020} as a correctness gate of the evaluation.
+
+\subsection{Quality: Coverage and Regions}
+\label{sec:quality}
+A restricted summary can be fully true and yet rest on a handful of trains. Following
+\citet{hudec2018}, the share of all records that support both the restriction and the
+summarizer, $i_C = \frac{1}{n}\left|\{\, i : \mu_R(x_i) > 0 \wedge \mu_S(x_i) > 0 \,\}\right|$,
+is mapped to a degree of sufficient coverage $C = f(i_C)$, a smooth step that is $0$ below a
+lower limit $r_1$ and $1$ above an upper limit $r_2$ \citep[Eqs.~(A.3)--(A.4)]{hudec2018}. The
+quality of the summary is
+\begin{equation}
+  Q_c = \begin{cases} v \cdot C & \text{if } C \ge c_{\min}, \\ 0 & \text{otherwise},
+  \end{cases}
+\end{equation}
+with the product as a non-idempotent t-norm \citep[Eq.~(9)]{hudec2018}. A summary without
+restriction covers the whole data set, so its coverage is one and its quality equals its
+truth \citep[p.~987]{hudec2018}. Because $n$ counts all records of the segment, coverage
+depends on the segment: a line that is a small fraction of the network is weakly covered
+network-wide but may be well covered at its own station. The assistant therefore mines its
+explanation summaries with the passenger's station as the segment.
+
+For summaries shown per region, \citet{hudec2022} relate the truth $v_i$ in region $i$ to the
+region's relative size $p_i = N_i / \max_j N_j$ through an ordinal sum $A(v_i, p_i)$ that
+behaves conjunctively when both are low and disjunctively when both are high
+\citep[Eqs.~(8), (13)--(16)]{hudec2022}; a region in which the sentence is not true at all
+gets quality zero. We use this regional measure in SRQ1 to ask in which stations or lines a
+network-wide sentence still holds.
+
+\subsection{Mining Summaries}
+\label{sec:mining}
+The same truth and quality computations produce the summaries that SRQ1 studies and that
+the assistant uses as further explanation. A miner enumerates, for a \emph{segment} of the
+data (the whole network, one study half, or one station), every combination of a quantifier,
+a summarizer word and a restriction. The restrictions are crisp: one per operator, product,
+line, canton and time band, and the overlapping weekday groups (weekdays, Mondays, Fridays,
+weekends). For each combination it records the truth, the coverage, the quality $Q_c$, the
+number of complete observations, the number of observations dropped because a value was
+missing, and a template-based English sentence, for example ``About half of the IC arrivals
+in the morning peak are slightly late.'' The sentences are generated from the same
+labels that define the restriction, so the wording cannot drift from what was computed.
+Summaries resting on few observations are kept and marked, and summaries that are valid but
+fail the coverage condition are counted by quantifier. Restricted summaries with \emph{few}
+are particularly affected: a sentence such as ``few of the IC1 arrivals are very late'' is
+supported by only a small share of all records, so its coverage, and with it its quality,
+is low by design. The miner works on all arrivals of a month in one pass per restriction
+family, so that the whole enumeration is fast enough to be repeated for every sensitivity
+analysis.
+
+\subsection{Perception-Aware Encoding}
+\label{sec:encoder}
+The official view asks whether a train was late. The passenger asks whether they missed
+their connection. The encoder answers the passenger's question for the passenger's own time
+to change $m$.
+
+\subsubsection*{Connections} For every observed connection between the question's arriving and
+departing lines at the hub, the data contains the planned and the actual gap between arrival
+and departure. Their difference is the shift that the two trains' delays caused. For a
+passenger with $m$ minutes to change, the same shift leaves a \emph{personal slack}
+\begin{equation}
+  s = m + (g_{\text{actual}} - g_{\text{planned}}) - t_{\text{transfer}},
+\end{equation}
+where $t_{\text{transfer}}$ is the minimum time needed to change platforms, an assumption of
+the study varied in a sensitivity analysis. Each observation contributes its membership
+$\mu_{\text{missed}}(s)$. If the departing train was cancelled, the connection is lost for
+the passenger, so $s = -\infty$ and the membership in \emph{missed} is one; an observation
+whose gap is unknown is left out. With $m$ equal to the planned gap, $s$ reduces to the
+actual slack of the observed connection.
+
+\subsubsection*{Fallback} If too few matching connections exist, the encoder falls back to the
+arriving line's arrivals at the hub and uses the word \emph{late for my transfer}: a delay
+$x$ has membership $0$ up to $m$ minus a small spread, $1$ from $m$ on, and rises linearly in
+between. The answer states that it is based on arrival delays only.
+
+In both cases the fuzzy proportion of the encoded observations, $p_{\text{miss}}$, is the
+fuzzy share of the passenger's connections that are missed. Because $m$ enters the encoder,
+the same trains can be safe for one passenger and risky for another.
+
+\subsection{Decision and Faithful Explanation}
+\label{sec:explanation}
+\subsubsection*{Decoder} The decision words \emph{safe}, \emph{at risk} and \emph{risky} are
+fuzzy sets over $p_{\text{miss}}$. The decision is the word with the highest membership;
+ties go to the more cautious word. The membership functions rise in the order of caution,
+so a later arrival can never make the answer safer. The points at which neighbouring words
+have equal membership are also the thresholds of the crisp official view below, so that the
+two views differ only in crispness and in the passenger's margin.
+
+\subsubsection*{Explanation} The explanation is built from the same computation:
+\begin{enumerate}
+  \item A sentence about the passenger's own connections: the quantifier with the highest
+  truth for $p_{\text{miss}}$, for example ``With four minutes to change, few of your
+  connections at Olten are missed.'' A sentence is only shown if its truth reaches the
+  validity threshold $\beta$ of \citet{pincay2021}.
+  \item Up to three further summaries about the station, for example about the arriving
+  line's delays in the time band, selected by the highest quality $Q_c$ among the valid
+  ones and mined with the station as the segment. Each is shown with its truth, its
+  coverage and the number of observations it rests on.
+\end{enumerate}
+
+\subsubsection*{The vocabulary gap} The quantifiers \emph{few}, \emph{about half} and
+\emph{most} do not cover the unit interval: there are proportions at which none of them
+reaches $\beta$. Such proportions lie, for example, between ``few'' and ``about half'', where
+answers turn risky. Rather than stating a word that does not fit, the assistant then states
+the measured share itself: ``With four minutes to change, about \emph{x} of your
+connections at Olten were missed or nearly missed'', where \emph{x} is the fuzzy share
+$p_{\text{miss}}$ that the decision used, and the number of clearly missed connections is
+given in brackets. How often answers fall into this gap is itself a result of the study.
+
+\subsubsection*{Faithful by construction} The decision word and the first explanation sentence
+are both functions of $p_{\text{miss}}$, so the explanation cannot contradict the decision.
+The assistant goes one step further and verifies every answer: it recomputes
+$p_{\text{miss}}$, the decision word and the truth of every stated sentence from the data and
+rejects the answer if any number differs. In the evaluation this check is a correctness gate
+(invariant I4) that must pass for all answers before any hypothesis is reported.
+
+\subsection{The Crisp Official View and the Two Checkers}
+\label{sec:crisp}
+\subsubsection*{Official view (SRQ2)} For the same question, the crisp view applies the
+operators' rule to the arriving line's measured arrivals at the hub in the question's time
+band and days: the share of arrivals that are three or more minutes late is mapped to the
+same three decision words with crisp thresholds, and it ignores the passenger's margin. Its
+sentences use the crisp reading of ``most'' as ``more than half''. SRQ2 counts how often the
+two views reach different words.
+
+\subsubsection*{Checking language-model claims (SRQ3)} A language model's answer is parsed
+deterministically into claims, each a quantifier, a summarizer and an optional restriction;
+causal claims and phrases without a clear meaning are counted as not checkable instead of
+being guessed. Each claim is then checked twice on the same data. The \emph{crisp checker}
+follows the set-based truth conditions of \citet{eida2026}: every observation gets exactly
+one crisp word, and the claim is true if the crisp share passes the quantifier's threshold,
+for example ``most'' as ``more than half''. The \emph{fuzzy checker} computes the claim's
+truth as in Section~\ref{sec:truth} and calls it true if the truth is at least one half.
+Borderline cases separate the two: when a bare majority of arrivals is fully late, ``most
+trains are late'' is crisply true but has a truth close to zero. The crisp checker reads the
+claim's words literally and is therefore stricter than the official punctuality rule; this
+difference is deliberate, since it models a verifier that checks what the claim says.
