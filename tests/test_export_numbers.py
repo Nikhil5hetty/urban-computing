@@ -162,13 +162,13 @@ def test_i6_flags_decimals_outside_numbers_and_tables(tmp_path):
         "Truth was 0.74 here.\n"  # flagged
         "Share 3,5 and .5 too.\n"  # flagged twice
         "% a comment with 0.99 is ignored\n"
-        "Escaped 12\\% then 1.5 after.\n"  # \\% is not a comment: 1.5 flagged
+        "Escaped 12\\% then 1.5 after.\n"  # \\% is not a comment: both flagged
         "In 2026, Section 3 and the 3-minute rule are fine.\n"
     )
     (tmp_path / "numbers.tex").write_text("\\newcommand{\\X}{0.74}\n")
     (tmp_path / "tables" / "t.tex").write_text("0.12 & 0.34\n")
     found = [(v.line, v.text) for v in i6.check(tmp_path)]
-    assert found == [(1, "0.74"), (2, "3,5"), (2, ".5"), (4, "1.5")]
+    assert found == [(1, "0.74"), (2, "3,5"), (2, ".5"), (4, "12\\%"), (4, "1.5")]
     assert i6.main(["--paper-dir", str(tmp_path)]) == 1
     (tmp_path / "sections" / "a.tex").write_text("No numbers: \\HoneaPoint.\n")
     assert i6.main(["--paper-dir", str(tmp_path)]) == 0
@@ -214,3 +214,79 @@ def test_cited_keys_exist_in_bibliography():
     assert cited and cited <= keys
     literature = (ROOT / "docs" / "literature.md").read_text()
     assert all(f"| {k} |" in literature for k in keys)  # only documented references
+
+
+# --------------------------------------------------------------------- review #48
+
+
+def _blocked(sample: bool) -> dict:
+    hyps = {k: {**v, "verdict": "blocked_by_invariant"} for k, v in SAMPLE["hypotheses"].items()}
+    return {**SAMPLE, "hypotheses": hyps,
+            "invariants": {"I1": "pass", "I2": "pass", "I3": "pass"},
+            "meta": {**SAMPLE["meta"], "sample": sample}}  # fmt: skip
+
+
+def test_blocked_real_results_are_not_exported(tmp_path, capsys):
+    import json
+
+    res = tmp_path / "results.json"
+    res.write_text(json.dumps(_blocked(sample=False)))
+    out = tmp_path / "paper" / "numbers.tex"
+    out.parent.mkdir()
+    assert exp.export(res, out) == 2 and not out.exists()
+    err = capsys.readouterr().err
+    assert "H1a" in err and "I4 (missing)" in err and "I5 (missing)" in err
+    with pytest.raises(RuntimeError, match="blocked"):
+        exp.render(_blocked(sample=False))
+
+
+def test_blocked_sample_results_still_export_with_banner(tmp_path):
+    import json
+
+    res = tmp_path / "results.json"
+    res.write_text(json.dumps(_blocked(sample=True)))
+    out = tmp_path / "paper" / "numbers.tex"
+    out.parent.mkdir()
+    assert exp.export(res, out) == 0
+    m = _macros(out.read_text())
+    assert m["ResultsSample"] == "yes" and "not for submission" in m["ResultsBanner"]
+    assert m["HoneaVerdict"] == "blocked by invariant"
+
+
+def test_real_results_with_all_invariants_export():
+    ok = {**SAMPLE, "invariants": {i: "pass" for i in exp.REQUIRED_REAL}}
+    assert "\\newcommand{\\HoneaPoint}{0.14}" in exp.render(ok)
+
+
+def test_ci_level_from_config_alpha():
+    assert _macros(exp.render(SAMPLE))["CILevel"] == "95\\%"
+    assert _macros(exp.render(SAMPLE, alpha=0.1))["CILevel"] == "90\\%"
+
+
+@pytest.mark.parametrize(
+    "line,hit",
+    [
+        ("About 52\\% of arrivals were late, based on 38 trains.", "52\\%"),
+        ("About 52 \\% of arrivals.", "52 \\%"),
+        ("About 52 percent of arrivals.", "52 percent"),
+        ("About 52 per cent of arrivals.", "52 per cent"),
+        ("About 52.5\\% of arrivals.", "52.5\\%"),  # one hit, not two
+    ],
+)
+def test_i6_flags_hand_typed_percentages(tmp_path, line, hit):
+    (tmp_path / "r.tex").write_text(line + "\n")
+    assert [v.text for v in i6.check(tmp_path)] == [hit]
+
+
+def test_citednum_escape_for_cited_literature(tmp_path):
+    (tmp_path / "r.tex").write_text(
+        "The operator reports \\citednum{94\\%} punctuality \\citep{x} and "
+        "\\citednum{2.5} min average delay; our share is \\HoneaPoint.\n"
+        "Counts like 38 trains are not checked (review).\n"
+    )
+    assert i6.check(tmp_path) == []
+    (tmp_path / "r.tex").write_text("\\citednum{94\\%} but also 61\\% hand-typed.\n")
+    assert [v.text for v in i6.check(tmp_path)] == ["61\\%"]
+    assert "\\newcommand{\\citednum}" in (PAPER / "main.tex").read_text()
+    readme = (PAPER / "README.md").read_text()
+    assert "\\citednum" in readme and "integer counts" in readme.lower()

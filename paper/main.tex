@@ -7,6 +7,10 @@
 
 \usepackage{xcolor}
 \newcommand{\placeholder}[1]{\textcolor{gray}{[#1]}}
+% A number quoted from cited literature (not from results.json), e.g.
+% "the operator reports \citednum{94\%} punctuality", next to its citation.
+% The I6 checker skips it. Never use it for our own results.
+\newcommand{\citednum}[1]{#1}
 
 \input{numbers}  % generated: make paper-numbers (scripts/export_paper_numbers.py)
 

@@ -24,10 +24,22 @@ Every number in the paper comes from `results/results.json` through the macros i
 `numbers.tex`. Macro names derive from the ids: digits are spelled out, so hypothesis `H1a`
 gives `\HoneaPoint`, `\HoneaCI`, `\HoneaCILow`, `\HoneaCIHigh`, `\HoneaP`, `\HoneaValue`,
 `\HoneaVerdict`; invariant `I3` gives `\IthreeStatus`. Provenance: `\ResultsGitSha`,
-`\ResultsConfigHash`, `\ResultsSample`, `\ResultsBanner`.
+`\ResultsConfigHash`, `\ResultsSample`, `\ResultsBanner`; `\CILevel` ("95\%", from
+`evaluation.alpha` in config/study.yaml).
 
-`scripts/check_paper_numbers.py` fails if a decimal number (`0.74`, `3,5`) appears in
-`paper/**/*.tex` outside `numbers.tex` and `tables/` (comments ignored). Write measured
-values only through macros or generated tables, and version numbers (models, libraries)
-through a macro or a table as well. If any invariant in results.json failed, the export
-refuses to write numbers (docs/evaluation.md §2.2).
+`scripts/check_paper_numbers.py` fails if a decimal number (`0.74`, `3,5`) or a percentage
+(`52\%`, `52 percent`, `52 per cent`) appears in `paper/**/*.tex` outside `numbers.tex`
+and `tables/` (comments ignored). Write measured values only through macros or generated
+tables, and version numbers (models, libraries) through a macro or a table as well.
+
+- **Numbers from cited literature** (e.g. the operator's published punctuality) are wrapped
+  in `\citednum{...}` next to their citation; the checker skips them. Use it only for
+  numbers that are not ours.
+- **Plain integer counts** ("based on 38 trains", "120 questions") are *not* caught by the
+  checker (integers also appear in years, section names and the "3-minute rule"). They must
+  come from macros as well; reviewers flag hand-typed counts.
+
+The export refuses to write numbers (exit 2) if any invariant in results.json failed, or
+if real (non-sample) results have a verdict `blocked_by_invariant`, i.e. a required
+invariant is missing or failed (docs/evaluation.md §2.2). Sample results from
+`make eval-sample` still export, with the red banner.
