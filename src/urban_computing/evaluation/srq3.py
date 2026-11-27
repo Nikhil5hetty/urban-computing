@@ -4,12 +4,15 @@ A claim keeps its parser slot even when it cannot be scored. McNemar pairs slots
 the same question, temperature and seed across the two primary conditions. Wilcoxon uses
 one mean of the scored claims per question and condition. The false-share difference
 uses all scored claims in each condition, including those without a scored counterpart.
+Hypothesis estimates require every primary completion. The audit tables describe the
+completions available at evaluation time.
 """
 
 from __future__ import annotations
 
 import json
 from collections import Counter, defaultdict
+from collections.abc import Iterator
 from dataclasses import dataclass
 from itertools import product
 from pathlib import Path
@@ -49,6 +52,30 @@ class _Run:
     checks: list[CheckResult]
 
 
+@dataclass
+class _StudyRuns:
+    runs: list[_Run]
+    missing_primary_completions: list[tuple[str, float, int, str]]
+
+    def incomplete_result(self) -> Result | None:
+        if not self.missing_primary_completions:
+            return None
+        return Result(
+            details={
+                "n_missing_primary_completions": len(self.missing_primary_completions),
+                "missing_primary_completions": [
+                    {
+                        "condition": condition,
+                        "temperature": temperature,
+                        "seed": seed,
+                        "question_id": qid,
+                    }
+                    for condition, temperature, seed, qid in self.missing_primary_completions
+                ],
+            }
+        )
+
+
 def _values(
     question: Question, arrivals: pd.DataFrame, connections: pd.DataFrame, min_transfer: float
 ) -> dict[str, np.ndarray]:
@@ -80,7 +107,14 @@ def _read_questions(path: Path, config: dict) -> dict[str, Question]:
     return questions
 
 
-def _stored_runs(ctx: Context, output_dir: Path, question_path: Path) -> list[_Run]:
+def _primary_jobs(settings: dict) -> Iterator[tuple[str, float, int]]:
+    conditions = (
+        condition for condition in settings["conditions"] if condition in STUDY_CONDITIONS
+    )
+    return product(conditions, settings["temperatures"], settings["seeds"])
+
+
+def _stored_runs(ctx: Context, output_dir: Path, question_path: Path) -> _StudyRuns:
     settings = ctx.config["llm"]
     model = settings["model_id"]
     model_dir = model.replace("/", "--")
@@ -89,17 +123,22 @@ def _stored_runs(ctx: Context, output_dir: Path, question_path: Path) -> list[_R
         for condition in CONDITIONS
         for path in sorted((output_dir / condition / model_dir).glob("*/*.jsonl"))
     ]
-    if not files:
-        return []
+    if not files and not question_path.exists():
+        return _StudyRuns([], [])
 
     questions = _read_questions(question_path, ctx.config)
+    revision = runner.model_revision(settings)
+    max_new_tokens = int(settings["max_new_tokens"])
     outputs: dict[tuple[str, float, int, str], str] = {}
     for condition, path in files:
         temperature, seed = float(path.parent.name), int(path.stem)
         if temperature not in settings["temperatures"] or seed not in settings["seeds"]:
             raise ValueError(f"{path}: temperature or seed is outside the study configuration")
-        with path.open(encoding="utf-8") as stream:
+        with path.open("rb") as stream:
             for line_number, line in enumerate(stream, 1):
+                if not line.endswith(b"\n"):
+                    # UC-040 treats an unterminated final record as an interrupted write.
+                    break
                 if not line.strip():
                     continue
                 row = json.loads(line)
@@ -112,6 +151,10 @@ def _stored_runs(ctx: Context, output_dir: Path, question_path: Path) -> list[_R
                     or row["mock"] is not ctx.sample
                 ):
                     raise ValueError(f"{location}: completion metadata does not match the run")
+                if row.get("model_revision") != revision:
+                    raise ValueError(f"{location}: model_revision does not match the study config")
+                if row.get("max_new_tokens") != max_new_tokens:
+                    raise ValueError(f"{location}: max_new_tokens does not match the study config")
                 qid = row["question_id"]
                 if qid not in questions:
                     raise ValueError(f"{location}: unknown question {qid!r}")
@@ -120,8 +163,14 @@ def _stored_runs(ctx: Context, output_dir: Path, question_path: Path) -> list[_R
                     raise ValueError(f"{location}: Duplicate completion for {key!r}")
                 outputs[key] = row["raw_output"]
 
+    expected = {
+        (condition, temperature, seed, qid)
+        for condition, temperature, seed in _primary_jobs(settings)
+        for qid in questions
+    }
+    missing = sorted(expected - outputs.keys())
     if not outputs:
-        return []
+        return _StudyRuns([], missing)
     arrivals, connections, hub_ids = _i4_tables(ctx)
     connection_config = ctx.config["connections"].copy()
     if hub_ids and not connection_config.get("hub_stop_ids"):
@@ -152,10 +201,10 @@ def _stored_runs(ctx: Context, output_dir: Path, question_path: Path) -> list[_R
                 check(claim, values, vocab, config) for claim in parse_output(qid, raw, lexicon)
             ]
             runs.append(_Run(condition, temperature, seed, question, checks))
-    return runs
+    return _StudyRuns(runs, missing)
 
 
-def _sample_runs(ctx: Context) -> list[_Run]:
+def _sample_runs(ctx: Context) -> _StudyRuns:
     _, connections, _ = _i4_tables(ctx)
     with TemporaryDirectory(dir=ctx.paths["interim_dir"]) as scratch:
         question_path = Path(scratch) / "questions.jsonl"
@@ -170,12 +219,10 @@ def _sample_runs(ctx: Context) -> list[_Run]:
             for index, question in enumerate(_i4_questions(connections, config), 1)
         ]
         if not questions:
-            return []
+            return _StudyRuns([], [])
         write_questions(questions, question_path)
         settings = ctx.config["llm"]
-        for condition, temperature, seed in product(
-            STUDY_CONDITIONS, settings["temperatures"], settings["seeds"]
-        ):
+        for condition, temperature, seed in _primary_jobs(settings):
             runner.run(
                 question_path,
                 condition,
@@ -188,7 +235,7 @@ def _sample_runs(ctx: Context) -> list[_Run]:
         return _stored_runs(ctx, output_dir, question_path)
 
 
-def _runs(ctx: Context) -> list[_Run]:
+def _runs(ctx: Context) -> _StudyRuns:
     if "srq3_runs" not in ctx.cache:
         if ctx.sample:
             runs = _sample_runs(ctx)
@@ -231,15 +278,21 @@ def _false_share(runs: list[_Run]) -> Result:
 @experiment("H3a")
 def h3a(ctx: Context) -> Result:
     """Return the stats-only fuzzy-false proportion, 95% Wilson CI and unverifiable rate."""
-    return _false_share([run for run in _runs(ctx) if run.condition == _STATS])
+    study = _runs(ctx)
+    if incomplete := study.incomplete_result():
+        return incomplete
+    return _false_share([run for run in study.runs if run.condition == _STATS])
 
 
 @experiment("H3b")
 def h3b(ctx: Context) -> Result:
     """Return grounded minus stats-only false share and paired McNemar and Wilcoxon tests."""
+    study = _runs(ctx)
+    if incomplete := study.incomplete_result():
+        return incomplete
     slots = {_STATS: {}, _GROUNDED: {}}
     truths = {_STATS: defaultdict(list), _GROUNDED: defaultdict(list)}
-    primary_runs = [run for run in _runs(ctx) if run.condition in STUDY_CONDITIONS]
+    primary_runs = [run for run in study.runs if run.condition in STUDY_CONDITIONS]
     for run in primary_runs:
         for result in run.checks:
             qid = result.claim.question_id
@@ -309,14 +362,17 @@ def _disagreement(runs: list[_Run]) -> Result:
 @experiment("H3c")
 def h3c(ctx: Context) -> Result:
     """Return the disagreement proportion, 95% Wilson CI and counts by checker outcome."""
-    return _disagreement(_runs(ctx))
+    study = _runs(ctx)
+    if incomplete := study.incomplete_result():
+        return incomplete
+    return _disagreement(study.runs)
 
 
 @table("srq3_breakdown")
 def breakdown(ctx: Context) -> Table:
     """Return condition-level, per-temperature, per-seed, and joint claim rates and counts."""
     groups = defaultdict(list)
-    for run in _runs(ctx):
+    for run in _runs(ctx).runs:
         for temperature, seed in (
             (None, None),
             (run.temperature, None),
@@ -350,7 +406,7 @@ def breakdown(ctx: Context) -> Table:
 def examples(ctx: Context) -> Table:
     """Return up to five distinct claims nearest truth 0.5, favoring disagreement on ties."""
     candidates = []
-    for run in _runs(ctx):
+    for run in _runs(ctx).runs:
         for result in run.checks:
             if result.crisp is not None and result.fuzzy is not None:
                 distance = abs(result.fuzzy - FUZZY_TRUE_THRESHOLD)

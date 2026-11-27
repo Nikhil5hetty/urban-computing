@@ -3,6 +3,7 @@
 import csv
 import json
 import shutil
+from itertools import product
 from pathlib import Path
 
 import pandas as pd
@@ -13,7 +14,7 @@ from tests import factories
 from urban_computing.evaluation import srq3
 from urban_computing.evaluation.questions import write_questions
 from urban_computing.evaluation.registry import Context
-from urban_computing.evaluation.run import run
+from urban_computing.evaluation.run import run, verdict
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -51,8 +52,9 @@ def study(tmp_path, monkeypatch):
     return ctx, question.question_id
 
 
-def _write_outputs(ctx, condition, temperature, seed, outputs):
-    model = ctx.config["llm"]["model_id"]
+def _write_outputs(ctx, condition, temperature, seed, outputs, **metadata):
+    settings = ctx.config["llm"]
+    model = settings["model_id"]
     base = Path(ctx.config["data"]["interim_dir"]) / "llm"
     path = base / condition / model.replace("/", "--") / str(temperature) / f"{seed}.jsonl"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -64,11 +66,31 @@ def _write_outputs(ctx, condition, temperature, seed, outputs):
             "temperature": temperature,
             "seed": seed,
             "model_id": model,
+            "model_revision": settings["model_revision"],
+            "max_new_tokens": settings["max_new_tokens"],
             "mock": False,
+            **metadata,
         }
         for qid, output in outputs
     ]
     path.write_text("".join(f"{json.dumps(row)}\n" for row in rows), encoding="utf-8")
+    return path
+
+
+def _write_primary_outputs(ctx, question_ids, overrides):
+    settings = ctx.config["llm"]
+    return {
+        (condition, temperature, seed): _write_outputs(
+            ctx,
+            condition,
+            temperature,
+            seed,
+            [(qid, overrides.get((condition, temperature, seed, qid), "")) for qid in question_ids],
+        )
+        for condition, temperature, seed in product(
+            settings["conditions"], settings["temperatures"], settings["seeds"]
+        )
+    }
 
 
 def test_stored_outputs_metrics_pairing_breakdown_and_examples(study):
@@ -76,33 +98,27 @@ def test_stored_outputs_metrics_pairing_breakdown_and_examples(study):
     stats, grounded = "stats_only", "fuzzy_grounded"
     false_claim = "Most trains are slightly late."
     true_claim = "Few trains are very late."
-    _write_outputs(
+    _write_primary_outputs(
         ctx,
-        stats,
-        0.0,
-        1,
-        [
-            (
-                qid,
+        (qid, "q2"),
+        {
+            (stats, 0.0, 1, qid): (
                 f"{false_claim} About half of connections are missed. About half are delayed. "
-                "Few trains are very late on Fridays.",
+                "Few trains are very late on Fridays."
             ),
-            ("q2", false_claim),
-        ],
+            (stats, 0.0, 1, "q2"): false_claim,
+            (
+                grounded,
+                0.0,
+                1,
+                qid,
+            ): f"{true_claim} About half are delayed. Few connections are missed.",
+            (grounded, 0.0, 1, "q2"): true_claim,
+            (stats, 0.7, 2, qid): true_claim,
+            (grounded, 0.7, 2, qid): true_claim,
+            (stats, 0.7, 1, qid): false_claim,
+        },
     )
-    _write_outputs(
-        ctx,
-        grounded,
-        0.0,
-        1,
-        [
-            (qid, f"{true_claim} About half are delayed. Few connections are missed."),
-            ("q2", true_claim),
-        ],
-    )
-    _write_outputs(ctx, stats, 0.7, 2, [(qid, true_claim)])
-    _write_outputs(ctx, grounded, 0.7, 2, [(qid, true_claim)])
-    _write_outputs(ctx, stats, 0.7, 1, [(qid, false_claim)])
     _write_outputs(ctx, "query_tool", 0.0, 1, [(qid, "Few trains are on time.")])
 
     a = srq3.h3a(ctx)
@@ -132,7 +148,7 @@ def test_stored_outputs_metrics_pairing_breakdown_and_examples(study):
     rows = srq3.breakdown(ctx).rows
     keyed = {(row["condition"], row["temperature"], row["seed"]): row for row in rows}
     assert keyed[stats, 0.7, None]["false_share"] == 0.5
-    assert keyed[stats, None, 1]["n_outputs"] == 3
+    assert keyed[stats, None, 1]["n_outputs"] == 4
     assert keyed[stats, 0.7, 2]["false_share"] == 0
     assert keyed["query_tool", None, None]["false_share"] == 1
 
@@ -150,16 +166,62 @@ def test_stored_outputs_metrics_pairing_breakdown_and_examples(study):
 
 def test_missing_or_empty_completions_have_no_estimates(study):
     ctx, qid = study
-    assert srq3.h3a(ctx).point is None
+    a = srq3.h3a(ctx)
+    assert a.point is None
+    assert a.details["n_missing_primary_completions"] == 24
     assert srq3.h3b(ctx).p is None
     assert srq3.h3c(ctx).point is None
     assert srq3.examples(ctx).rows == []
 
-    _write_outputs(ctx, "stats_only", 0.0, 1, [(qid, "Have a good trip.")])
+    _write_primary_outputs(ctx, (qid, "q2"), {})
     ctx.cache.clear()
     a = srq3.h3a(ctx)
     assert a.point is None and a.details["unverifiable_rate"] is None
-    assert a.details["n_outputs"] == a.details["n_outputs_without_claims"] == 1
+    assert a.details["n_outputs"] == a.details["n_outputs_without_claims"] == 12
+
+
+@pytest.mark.parametrize("missing", ["run", "question", "truncated_question"])
+def test_incomplete_primary_inputs_withhold_hypothesis_verdicts(study, missing):
+    ctx, qid = study
+    paths = _write_primary_outputs(
+        ctx,
+        (qid, "q2"),
+        {
+            ("stats_only", 0.0, 1, qid): "Most trains are slightly late.",
+            ("fuzzy_grounded", 0.0, 1, qid): "Few trains are very late.",
+        },
+    )
+    expected = []
+    for condition in sorted(ctx.config["llm"]["conditions"]):
+        path = paths[condition, 0.7, 2]
+        if missing == "run":
+            path.unlink()
+        else:
+            first, second = path.read_bytes().splitlines(keepends=True)
+            tail = second[:20] + b"\xc3" if missing == "truncated_question" else b""
+            path.write_bytes(first + tail)
+        expected.extend(
+            {"condition": condition, "temperature": 0.7, "seed": 2, "question_id": question_id}
+            for question_id in (sorted([qid, "q2"]) if missing == "run" else ["q2"])
+        )
+
+    specs = yaml.safe_load((ROOT / "eval/hypotheses.yaml").read_text(encoding="utf-8"))
+    by_id = {spec["id"]: spec for spec in specs["hypotheses"]}
+    for key, experiment in (("H3a", srq3.h3a), ("H3b", srq3.h3b), ("H3c", srq3.h3c)):
+        result = experiment(ctx)
+        assert (result.point, result.ci_low, result.ci_high, result.p) == (None,) * 4
+        assert verdict(by_id[key], result) == "inconclusive"
+        assert result.details["n_missing_primary_completions"] == len(expected)
+        assert result.details["missing_primary_completions"] == expected
+    assert srq3.breakdown(ctx).rows
+
+
+@pytest.mark.parametrize("field, value", [("model_revision", "0" * 40), ("max_new_tokens", 100)])
+def test_rejects_outputs_generated_with_different_model_settings(study, field, value):
+    ctx, qid = study
+    _write_outputs(ctx, "stats_only", 0.0, 1, [(qid, "")], **{field: value})
+    with pytest.raises(ValueError, match=field):
+        srq3.h3a(ctx)
 
 
 @pytest.mark.parametrize("duplicate", [True, False])
