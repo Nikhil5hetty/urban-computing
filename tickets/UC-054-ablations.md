@@ -3,7 +3,7 @@ id: UC-054
 title: Ablations and sensitivity analyses
 epic: evaluation
 milestone: M3
-status: todo
+status: done
 owner: agent
 estimate_h: 2
 depends_on: [UC-050, UC-051]        # hard: needs merged code
