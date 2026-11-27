@@ -23,7 +23,12 @@ dispatch = _load("dispatch")
 
 
 def _setup():
+    """All tickets as at the project start (status todo), so the selection tests do not
+    depend on how far the live board has progressed (they failed once few tickets were
+    left; UC-061 CI)."""
     tickets = tk.load_all()
+    for t in tickets:
+        t.meta["status"] = "todo"
     issue_map = {t.id: {"number": i + 1} for i, t in enumerate(tickets)}
     return tickets, issue_map
 
