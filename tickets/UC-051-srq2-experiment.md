@@ -3,7 +3,7 @@ id: UC-051
 title: "SRQ2 experiment: crisp official view vs perception-aware verdicts"
 epic: evaluation
 milestone: M2
-status: in-progress
+status: done
 owner: agent
 estimate_h: 3
 depends_on: [UC-031, UC-032, UC-053]        # hard: needs merged code
@@ -31,3 +31,17 @@ perception-aware decision (UC-031) differ across (connection type × margin) cel
 
 ## Tests
 `tests/test_srq2.py`.
+
+## Real-data run
+
+On the real-data machine with the Batch A outputs in place, generate the fixed question
+set with `make questions` if it is missing. Run the SRQ2 providers and the runner's
+required invariants with:
+
+```sh
+uv run --locked python -m urban_computing.evaluation.run --config config/study.yaml --only srq2
+```
+
+Read H2a (including the flip matrix) and H2b in `results/results.json`. The transfer-time
+sensitivity and the first three available flipped cells with their original explanations
+are in `results/tables/srq2_transfer_sensitivity.csv` and `results/tables/srq2_examples.csv`.
