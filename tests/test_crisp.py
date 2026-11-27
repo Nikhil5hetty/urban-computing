@@ -134,3 +134,64 @@ def test_no_arrivals_raises():
     with pytest.raises(NoArrivalsError, match="Basel|IC1"):
         crisp_answer(Q(), factories.arrivals([None] * 5), CONFIG)
     assert issubclass(NoArrivalsError, ValueError)
+
+
+# --------------------------------------------------------------------- review #51: stop ids
+
+from urban_computing.assistant.crisp import NAME_FALLBACK_NOTE, hub_stop_keys  # noqa: E402
+
+ID_CONFIG = copy.deepcopy(CONFIG)
+ID_CONFIG["connections"]["hub_stop_ids"] = {"Olten": ["8500218", "ch:1:sloid:218"]}
+
+
+def test_hub_matched_by_stop_id_not_name():
+    hub = late_share(10, 200)  # stop_id 8500218, stop_name "Olten"
+    same_name_other_id = factories.arrivals([20.0] * 100, stop_id="8599999")  # also "Olten"
+    a = crisp_answer(Q(), pd.concat([hub, same_name_other_id], ignore_index=True), ID_CONFIG)
+    assert "10 of 200" in a.crisp_sentences[1] and a.crisp_decision == "safe"
+    assert NAME_FALLBACK_NOTE not in a.crisp_sentences
+
+
+@pytest.mark.parametrize(
+    "stop_id,stop_name",
+    [
+        ("8500218", ""),  # blank operator-supplied name
+        ("850021800", "Olten"),  # nine-digit BPUIC -> first seven digits
+        ("ch:1:sloid:218", "Olten"),  # stop SLOID
+        ("ch:1:sloid:218:3:5", "Olten Gleis 5"),  # child SLOID -> stop SLOID
+        (" 8500218 ", "OLTEN"),  # whitespace; name irrelevant
+    ],
+)
+def test_hub_ids_include_bpuic_and_child_sloid_whatever_the_name(stop_id, stop_name):
+    data = factories.arrivals([5.0] * 3 + [0.0] * 7, stop_id=stop_id, stop_name=stop_name)
+    a = crisp_answer(Q(), data, ID_CONFIG)
+    assert "3 of 10" in a.crisp_sentences[1]
+
+
+def test_name_fallback_only_without_id_mapping_and_is_stated():
+    a = crisp_answer(Q(), late_share(10, 200), CONFIG)  # study.yaml has no hub_stop_ids
+    assert a.crisp_sentences[-1] == NAME_FALLBACK_NOTE
+    assert NAME_FALLBACK_NOTE in a.to_text()
+    assert hub_stop_keys("Olten", CONFIG) is None
+    assert hub_stop_keys("Olten", ID_CONFIG) == {"8500218", "ch:1:sloid:218"}
+
+
+def test_mapping_without_the_hub_raises():
+    cfg = copy.deepcopy(ID_CONFIG)
+    cfg["connections"]["hub_stop_ids"] = {"Bern": ["8507000"]}
+    with pytest.raises(ValueError, match="Olten"):
+        crisp_answer(Q(), late_share(1, 10), cfg)
+
+
+def test_stop_key_regex_identical_to_uc014_connections():
+    """crisp uses data.arrivals._stop_key; UC-014 uses the SQL in data.connections._stop_key."""
+    import inspect
+    import re
+
+    from urban_computing.data import arrivals as arr
+    from urban_computing.data import connections as con
+
+    def pattern(src: str) -> str:
+        return re.search(r"\^\(\[0-9\]\{7\}\).*?\$'?\"?,", src).group(0).rstrip("',\"")
+
+    assert pattern(inspect.getsource(arr._stop_key)) == pattern(inspect.getsource(con._stop_key))

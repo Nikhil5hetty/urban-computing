@@ -117,6 +117,12 @@ margin by design: only crispness and the margin differ from the fuzzy decision (
 - Rows: REAL arrivals of the question's arriving line (else product) at the hub, in its time
   band and weekday group. Cancelled arrivals and arrivals without a measured delay are not
   counted.
+- Hub stops are matched by **identifier**, exactly as for connections (UC-014, data.md §6):
+  `stop_id` normalised with the shared stop key (9-digit BPUIC → first 7 digits, child SLOID
+  → stop SLOID) against `connections.hub_stop_ids[hub]`, the atlas-resolved ids that the
+  caller passes to both the crisp and the fuzzy view, so SRQ2 compares the same arrivals.
+  Display names (`stop_name`) are used only as an explicit fallback when no id mapping is
+  configured, and the answer then says so.
 - p_late = share of those arrivals with delay ≥ 3 min (SBB punctuality rule, D-007;
   `crisp_baseline.punctual_threshold_minutes`).
 - Decision (`crisp_baseline.decision_thresholds`): safe if p_late < 0.075, at_risk if
