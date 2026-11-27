@@ -354,11 +354,16 @@ explanation is faithful by construction (invariant I4).
      - the core quantifier with the highest truth μ_Q(p_miss), if that truth is ≥ β:
        "With 4 minutes to change, few of your connections at Olten are missed." It carries
        n complete rows and coverage 1;
-     - otherwise the **measured share**: "With 4 minutes to change, 12 of your 40
-       connections at Olten (30%) were missed." This uses the crisp count k: slack < 0
-       (D-023), or in the fallback delay ≥ margin (arriving after a punctual departure).
-       Its truth is 1, because it is a crisp statement that `verify_answer` rebuilds
-       exactly.
+     - otherwise the **measured share**: "With 4 minutes to change, about 30% of your 40
+       connections at Olten were missed or nearly missed (12 clearly missed)."
+       - The percentage is round(100 · p_miss), the fuzzy share the decision uses, so the
+         sentence can never contradict the decision word.
+       - "or nearly" names the partial memberships: slack in (−0.5, 0), or in the fallback a
+         delay in (margin − spread, margin).
+       - The bracket gives the crisp count: slack < 0 (D-023), or in the fallback delay ≥
+         margin.
+       - Its truth is 1, because it is a statement that `verify_answer` rebuilds exactly
+         (PM reviews of #56).
      - Rationale: the core quantifiers leave **gaps** in [0, 1] where no word reaches β = 0.6:
        p_miss ∈ [0.21, 0.38] and [0.62, 0.70] (μ_few(0.25) = 0.40, μ_about_half(0.35) =
        0.33, μ_most(0.65) = 0.43). Without the measured share, many "at risk" and "risky"

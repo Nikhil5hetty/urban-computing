@@ -228,19 +228,29 @@ def _own_sentence(question: Question, q: str, fallback: bool) -> str:
 COUNT = "count"  # Explanation.quantifier of the measured-share sentence (vocabulary gap)
 
 
-def count_sentence(question: Question, k: int, n: int, fallback: bool) -> str:
-    """Measured share when no core quantifier reaches beta (PM review of #56), e.g.
-    "With 4 minutes to change, 8 of your 25 connections at Olten (32%) were missed." """
+def count_sentence(question: Question, p_miss: float, k: int, n: int, fallback: bool) -> str:
+    """Measured share when no core quantifier reaches beta (PM reviews of #56), e.g.
+    "With 4 minutes to change, about 30% of your 25 connections at Olten were missed or
+    nearly missed (8 clearly missed)."
+
+    The percentage is round(100 * p_miss), the fuzzy share the decision uses, so the sentence
+    can never contradict the decision word; "or nearly" names the partial memberships
+    (slack in (-0.5, 0), delay in (margin - spread, margin)). k is the crisp count
+    (slack < 0, or delay >= margin) of the n complete rows.
+    """
     m = f"{question.margin_min:g}"
-    pct = f"{round(100 * k / n)}%"
+    pct = f"{round(100 * p_miss)}%"
     if fallback:
         what = question.arr_line or question.arr_product
         return (
-            f"With {m} minutes to change, {k} of {n} {what} arrivals at {question.hub} ({pct}) "
-            "were too late for your transfer."
+            f"With {m} minutes to change, about {pct} of the {n} {what} arrivals at "
+            f"{question.hub} were too late or nearly too late for your transfer "
+            f"({k} clearly too late)."
         )
-    where = f"of your {n} connections at {question.hub}"
-    return f"With {m} minutes to change, {k} {where} ({pct}) were missed."
+    return (
+        f"With {m} minutes to change, about {pct} of your {n} connections at {question.hub} "
+        f"were missed or nearly missed ({k} clearly missed)."
+    )
 
 
 def _config_hash(config: dict) -> str:
@@ -279,7 +289,7 @@ def answer(
     if truth < beta:
         explanations.append(
             Explanation(
-                sentence=count_sentence(question, k, n, fallback),
+                sentence=count_sentence(question, p_miss, k, n, fallback),
                 quantifier=COUNT,
                 summarizer=summarizer,
                 restriction=own,
@@ -390,7 +400,7 @@ def verify_answer(
         if e.truth < beta:
             return False
         if e.quantifier == COUNT:
-            if e.sentence != count_sentence(question, k, n, fallback) or e.n != n:
+            if e.sentence != count_sentence(question, p_miss, k, n, fallback) or e.n != n:
                 return False
             if _best_quantifier(p_miss, vocab)[1] >= beta:  # count only in the vocabulary gap
                 return False

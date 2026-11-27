@@ -268,8 +268,8 @@ def test_vocabulary_gap_still_explains_p_miss(p):
     k = round(p * 40)
     assert e.quantifier == "count" and e.n == 40
     assert e.sentence == (
-        f"With 4 minutes to change, {k} of your 40 connections at Olten "
-        f"({round(100 * k / 40)}%) were missed."
+        f"With 4 minutes to change, about {round(100 * p)}% of your 40 connections at Olten "
+        f"were missed or nearly missed ({k} clearly missed)."
     )
     assert all(x.truth >= BETA for x in ans.explanations)  # never a word below beta
     assert verify_answer(ans, c, a, VOCAB, CONFIG)
@@ -279,7 +279,7 @@ def test_count_sentence_verified_exactly_and_only_in_the_gap():
     c, a = _connections_for(0.30), arrs([0.0] * 40)
     ans = answer(Q(), c, a, VOCAB, CONFIG)
     first = ans.explanations[0]
-    wrong = first.model_copy(update={"sentence": first.sentence.replace("12 of", "11 of")})
+    wrong = first.model_copy(update={"sentence": first.sentence.replace("30%", "29%")})
     assert not verify_answer(ans.model_copy(update={"explanations": [wrong]}), c, a, VOCAB,
                              CONFIG)  # fmt: skip
     assert not verify_answer(ans.model_copy(update={"explanations": ans.explanations[1:]}), c,
@@ -288,8 +288,9 @@ def test_count_sentence_verified_exactly_and_only_in_the_gap():
     c2 = _connections_for(0.0)
     ok = answer(Q(), c2, a, VOCAB, CONFIG)
     assert ok.explanations[0].quantifier == "few"
-    fake = first.model_copy(update={"sentence": "With 4 minutes to change, 0 of your 40 "
-                                    "connections at Olten (0%) were missed."})  # fmt: skip
+    fake = first.model_copy(update={"sentence": "With 4 minutes to change, about 0% of your 40 "
+                                    "connections at Olten were missed or nearly missed "
+                                    "(0 clearly missed)."})  # fmt: skip
     assert not verify_answer(ok.model_copy(update={"explanations": [fake]}), c2, a, VOCAB, CONFIG)
 
 
@@ -300,8 +301,9 @@ def test_vocabulary_gap_fallback_wording():
     assert ans.provenance.fallback and ans.p_miss == pytest.approx(0.30)
     e = ans.explanations[0]
     assert e.restriction == OWN_ARRIVALS and e.quantifier == "count"
-    assert e.sentence == ("With 4 minutes to change, 12 of 40 IC1 arrivals at Olten (30%) were "
-                          "too late for your transfer.")  # fmt: skip
+    assert e.sentence == ("With 4 minutes to change, about 30% of the 40 IC1 arrivals at Olten "
+                          "were too late or nearly too late for your transfer "
+                          "(12 clearly too late).")  # fmt: skip
     assert verify_answer(ans, few, arrs(delays), VOCAB, CONFIG)
 
 
@@ -313,3 +315,44 @@ def test_every_answer_has_an_own_sentence_across_p():
         assert any(e.restriction == OWN_CONNECTIONS for e in ans.explanations), k
         assert all(e.truth >= BETA for e in ans.explanations)
         assert verify_answer(ans, c, a, VOCAB, CONFIG)
+
+
+# --------------------------------------------------------------------- review #56 (2)
+
+
+def test_fallback_count_sentence_never_contradicts_the_decision():
+    """PM probe: margin 4, 15 arrivals 3 min late, 10 on time -> p_miss 0.30, risky.
+    The crisp count is 0 (none >= 4 min), so the sentence must state the fuzzy 30 %."""
+    few = conns([4.0] * 5)  # < 20 connections -> fallback
+    a = arrs([3.0] * 15 + [0.0] * 10)
+    ans = answer(Q(), few, a, VOCAB, CONFIG)
+    assert ans.provenance.fallback and ans.p_miss == pytest.approx(0.30)
+    assert ans.decision == "risky"
+    e = ans.explanations[0]
+    assert e.quantifier == "count" and "about 0%" not in e.sentence
+    assert e.sentence == (
+        "With 4 minutes to change, about 30% of the 25 IC1 arrivals at Olten were too late or "
+        "nearly too late for your transfer (0 clearly too late)."
+    )
+    assert verify_answer(ans, few, a, VOCAB, CONFIG)
+
+
+def test_connection_count_sentence_states_p_miss_when_crisp_share_differs():
+    # slack -0.25 (actual gap 1.75 of planned 4, margin 4, min transfer 2): mu_missed 0.5,
+    # crisply missed; slack 2: made. 24 of 40 nearly missed -> p_miss 0.30, crisp k/n 0.60
+    c = conns([1.75] * 24 + [4.0] * 16)
+    ans = answer(Q(), c, arrs([0.0] * 40), VOCAB, CONFIG)
+    assert ans.p_miss == pytest.approx(0.30) and ans.decision == "risky"
+    e = ans.explanations[0]
+    assert e.sentence == (
+        "With 4 minutes to change, about 30% of your 40 connections at Olten were missed or "
+        "nearly missed (24 clearly missed)."
+    )
+    assert verify_answer(ans, c, arrs([0.0] * 40), VOCAB, CONFIG)
+
+
+@pytest.mark.parametrize("p", [0.25, 0.30, 0.35, 0.65])
+def test_count_sentence_percentage_is_the_decisions_share(p):
+    c, a = _connections_for(p), arrs([0.0] * 40)
+    ans = answer(Q(), c, a, VOCAB, CONFIG)
+    assert f"about {round(100 * ans.p_miss)}%" in ans.explanations[0].sentence
