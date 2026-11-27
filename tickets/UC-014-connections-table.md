@@ -3,7 +3,7 @@ id: UC-014
 title: Reconstruct connections at Zürich HB, Bern, Olten
 epic: data
 milestone: M1
-status: todo
+status: in-progress
 owner: agent
 estimate_h: 4
 depends_on: []        # hard: needs merged code
