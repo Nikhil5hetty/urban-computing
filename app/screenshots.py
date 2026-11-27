@@ -1,7 +1,7 @@
 """Reproduce paper/figures/app_*.png (UC-060) with headless Chrome over the DevTools protocol.
 
     uv run streamlit run app/main.py --server.headless true --server.port 8599 \\
-        --theme.base light -- --sample &
+        --theme.base light --client.toolbarMode minimal -- --sample &
     uv run python app/screenshots.py --url http://localhost:8599 --chrome "/path/to/chrome"
 
 Waits until the page shows its data footer (the app has finished rendering), then captures.

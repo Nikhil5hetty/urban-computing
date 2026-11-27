@@ -14,10 +14,12 @@ import yaml
 from tests import factories
 from urban_computing.assistant.contract import Answer, Explanation, Provenance
 from urban_computing.assistant.render import (
+    BADGE_HEX,
     answer_view_model,
     chatbot_view_model,
     footer_text,
     truth_badge,
+    truth_bar_html,
 )
 from urban_computing.llm.checkers import CheckResult
 from urban_computing.llm.parser import Claim
@@ -46,8 +48,8 @@ def _numbers(text: str) -> set[str]:
 
 
 def _strings(obj) -> list[str]:
-    if isinstance(obj, dict):
-        return [s for v in obj.values() for s in _strings(v)]
+    if isinstance(obj, dict):  # bar_html is styling (CSS sizes / colours), not shown numbers
+        return [s for k, v in obj.items() if k != "bar_html" for s in _strings(v)]
     if isinstance(obj, list):
         return [s for v in obj for s in _strings(v)]
     return [obj] if isinstance(obj, str) else []
@@ -217,8 +219,10 @@ def test_app_runs_on_the_fixture(monkeypatch, view):
     md = " ".join(m.value for m in at.markdown)
     if view == "answer":
         assert "about half of your connections at Zürich HB are missed" in md
+        assert BADGE_HEX["green"] in md  # truth 1.00 -> green bar, not the theme's red
     elif view == "official":
         assert "13 of 25 arrivals were 3 or more minutes late." in md
+        assert "about half of your connections at Zürich HB are missed" in md  # side by side
     else:
         assert "No cached chatbot answer" in md
 
@@ -227,3 +231,40 @@ def test_answer_json_round_trip_keeps_view_model():
     ans = factories.sample_answer()
     again = Answer.model_validate(json.loads(ans.model_dump_json()))
     assert answer_view_model(again) == answer_view_model(ans)
+
+
+# --------------------------------------------------------------------- review #58
+
+
+@pytest.mark.parametrize("truth,badge", [(1.0, "green"), (0.45, "amber"), (0.1, "red")])
+def test_truth_bar_colour_follows_the_badge(truth, badge):
+    ex = factories.sample_answer().explanations[0].model_copy(update={"truth": truth})
+    vm = answer_view_model(factories.sample_answer(decision="risky", explanations=[ex]))
+    e = vm["explanations"][0]
+    assert e["badge"] == badge
+    assert e["bar_html"] == truth_bar_html(truth, badge)
+    assert BADGE_HEX[badge] in e["bar_html"]
+    others = {c for b, c in BADGE_HEX.items() if b != badge}
+    assert not any(c in e["bar_html"] for c in others)
+    assert f"width:{round(100 * truth, 1)}%" in e["bar_html"]
+
+
+def test_fully_true_sentence_is_green_even_when_the_decision_is_risky():
+    vm = answer_view_model(factories.sample_answer(decision="risky"))
+    assert vm["decision"]["color"] == "red"
+    ex = factories.sample_answer().explanations[0].model_copy(update={"truth": 1.0})
+    vm = answer_view_model(factories.sample_answer(decision="risky", explanations=[ex]))
+    assert BADGE_HEX["green"] in vm["explanations"][0]["bar_html"]
+
+
+def test_own_sentences_for_the_official_side_by_side():
+    own = Explanation(sentence="With 4 minutes to change, few of your connections at Olten are "
+                      "missed.", quantifier="few", summarizer="connection_slack_minutes:missed",
+                      restriction="own_connections", truth=1.0, coverage=1.0, n=30)  # fmt: skip
+    mined = factories.sample_answer().explanations[0]  # restriction hub=Olten&...
+    vm = answer_view_model(factories.sample_answer(explanations=[own, mined]))
+    assert vm["own_sentences"] == [own.sentence]
+    fallback = own.model_copy(update={"restriction": "own_arrivals", "sentence": "x"})
+    assert answer_view_model(factories.sample_answer(explanations=[fallback]))["own_sentences"] == [
+        "x"
+    ]

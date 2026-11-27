@@ -18,6 +18,8 @@ DECISION_LABEL = {"safe": "Safe", "at_risk": "At risk", "risky": "Risky"}
 DECISION_COLOR = {"safe": "green", "at_risk": "orange", "risky": "red"}
 SOURCE = "opentransportdata.swiss (Ist-Daten, {month})"
 COUNT_QUANTIFIER = "count"  # measured-share sentence of the engine (UC-031)
+OWN_RESTRICTIONS = ("own_connections", "own_arrivals")  # engine's own-segment markers
+BADGE_HEX = {"green": "#1a7f37", "amber": "#b26a00", "red": "#c62828", "gray": "#6e7781"}
 
 
 def truth_badge(truth: float) -> str:
@@ -27,6 +29,17 @@ def truth_badge(truth: float) -> str:
     if truth >= AMBER:
         return "amber"
     return "red"
+
+
+def truth_bar_html(fraction: float, badge: str) -> str:
+    """A truth bar coloured by its badge (green / amber / red), not by the app theme, so a
+    fully true sentence never looks like an alarm (PM review of #58). Pure HTML string."""
+    pct = round(100 * max(0.0, min(1.0, fraction)), 1)
+    color = BADGE_HEX[badge]
+    return (
+        "<div style='background:#e6e6e6;border-radius:4px;height:10px;width:100%'>"
+        f"<div style='background:{color};width:{pct}%;height:10px;border-radius:4px'></div></div>"
+    )
 
 
 def _month(period: str) -> str:
@@ -64,8 +77,10 @@ def answer_view_model(ans: Answer) -> dict:
 
     Keys: question (one line), decision {word, label, color}, explanations [{sentence,
     truth (2 decimals) or None for a measured-share sentence, truth_value, badge, bar
-    (0..1), coverage text or None, n, n_text}], official {decision, label, color,
-    sentences} or None, fallback_note or None, period, footer.
+    (0..1), bar_html (bar in the badge colour) or None, coverage text or None, n, n_text}],
+    own_sentences (the sentences on the passenger's own connections / arrivals, for the
+    side-by-side Official view), official {decision, label, color, sentences} or None,
+    fallback_note or None, period, footer.
     """
     explanations = []
     for e in ans.explanations:
@@ -77,6 +92,7 @@ def answer_view_model(ans: Answer) -> dict:
                 "truth_value": None if is_count else e.truth,
                 "badge": None if is_count else truth_badge(e.truth),
                 "bar": None if is_count else max(0.0, min(1.0, e.truth)),
+                "bar_html": None if is_count else truth_bar_html(e.truth, truth_badge(e.truth)),
                 "coverage": None if e.coverage is None or is_count else f"{e.coverage:.2f}",
                 "n": e.n,
                 "n_text": f"based on {e.n} observations",
@@ -98,6 +114,9 @@ def answer_view_model(ans: Answer) -> dict:
             "color": DECISION_COLOR[ans.decision],
         },
         "explanations": explanations,
+        "own_sentences": [
+            e.sentence for e in ans.explanations if e.restriction in OWN_RESTRICTIONS
+        ],
         "official": official,
         "fallback_note": (
             "Based on arrival delays only, because too few matching connections were found."

@@ -112,7 +112,8 @@ def _answer_view(vm: dict) -> None:
         if e["truth"] is None:
             st.caption(f"Measured share, {e['n_text']}.")
         else:
-            st.progress(e["bar"], text=f"truth {e['truth']}")
+            st.markdown(e["bar_html"], unsafe_allow_html=True)
+            st.caption(f"truth {e['truth']}")
             cov = f", coverage {e['coverage']}" if e["coverage"] else ""
             st.caption(f"{e['n_text']}{cov}")
     if vm["fallback_note"]:
@@ -127,6 +128,8 @@ def _official_view(vm: dict) -> None:
             _badge(vm["decision"]["label"], vm["decision"]["color"]), unsafe_allow_html=True
         )
         st.caption("Based on your time to change.")
+        for s in vm["own_sentences"]:
+            st.markdown(s)
     with right:
         st.subheader("Official view")
         if vm["official"] is None:
