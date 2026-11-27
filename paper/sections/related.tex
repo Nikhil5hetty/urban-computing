@@ -1,6 +1,117 @@
 % UC-071: Background and related work. Cite only entries verified in docs/literature.md.
+% Sources marked "verified (metadata)" are cited only for what docs/literature.md records
+% next to them (e.g. "as attributed by ...").
+% TODO(verify): add verified entries for Zadeh's computing with words and Mendel's
+% Perceptual Computer to docs/literature.md, then cite them in Section 2.1.
+% Pincay 2022 (issue #53 open): claim only what pincay2021 §5 states.
 \section{Background and Related Work}
 \label{sec:related}
-\placeholder{UC-071: computing with words and linguistic summaries; quality measures
-\citep{hudec2022}; linguistic summaries of traffic data \citep{pincay2021}; checking
-quantified statements written by language models \citep{eida2026}.}
+
+The assistant draws on four strands of work: computing with words and its use in citizen
+interfaces, fuzzy linguistic summaries and their quality measures, explanation through
+linguistic summaries, and the verification of quantified statements produced by language
+models. A fifth, smaller strand concerns how passengers perceive punctuality.
+
+\subsection{Computing with Words in Citizen-Facing Systems}
+\label{sec:rw-cww}
+Computing with words (CWW) treats words as the objects of computation: their meaning is a
+fuzzy set, and a system reasons with these meanings instead of with crisp categories. A
+common way to structure such a system is the architecture of the Perceptual Computer, in
+which an \emph{encoder} turns inputs into fuzzy sets, a \emph{CWW engine} computes with
+them, and a \emph{decoder} turns the result back into words a person can act on. Our
+assistant follows this structure (Section~\ref{sec:concept}).
+
+At Human-IST, CWW has been studied as a way to make interfaces respond to people's
+perceptions rather than to rigid categories: \citet{colombo2024} proposes \emph{phenotropic
+interaction}, interfaces improved with computing with words and perceptions. The limits of
+crisp categories in public data are the subject of \citet{spycher2026}, who examine
+taxonomies for open government data. Our work shares this perspective: the official
+punctuality rule is a crisp category over open government data, and a passenger's notion of
+``late enough to miss my train'' is a perception that depends on their situation.
+
+\subsection{Fuzzy Linguistic Summaries and Their Quality}
+\label{sec:rw-ls}
+A linguistic summary is a quantified sentence about a data set, such as ``most trains are on
+time''. The idea goes back to \citet{yager1982}. \citet{kacprzyk2009} describe such
+summaries through \emph{protoforms}, templates such as ``$Q$ of the $x$ are $S$'' and ``$Q$ of
+the $R$ $x$ are $S$'', in which $Q$ is a fuzzy quantifier (``most''), $S$ a summarizer
+(``on time'') and $R$ a restriction (``in the morning peak''). The truth, or validity, of a
+summary is the membership of the summarizer's proportion in the quantifier; we use it in
+the form given by \citet[Eq.~(2)]{pincay2021}, who attribute it to \citet{kacprzyk2009}, and
+by \citet[Eqs.~(5)--(6)]{hudec2022}, who attribute it to \citet{yager1982}.
+
+Validity alone does not say how much data a sentence rests on. \citet{hudec2018} use short
+quantified sentences to disseminate official statistics and combine validity with
+\emph{coverage}: a restricted summary may be fully valid and yet describe only a handful of
+records. Their quality measure $Q_c$ is a non-idempotent t-norm of validity and coverage
+(for example the product, which we use) when the coverage reaches a threshold, and zero
+otherwise \citep[Eq.~(9)]{hudec2018}; they attribute
+the merge of validity and coverage to \citet{hudec2017}. The degree of sufficient coverage is
+a smooth function of the share of records that support both the restriction and the
+summarizer \citep[Eqs.~(A.3)--(A.4)]{hudec2018}, a function \citet{hudec2022} attribute to
+\citet{wu2010}. \citet{hudec2022} further propose a \emph{regional} quality measure for
+summaries shown on maps: the same sentence is evaluated per region, and its truth is combined
+with the region's relative size through an ordinal sum of a conjunctive and a disjunctive
+operator, so that small regions are neither ignored nor allowed to dominate. These are the
+measures we use for SRQ1.
+
+\subsection{Linguistic Summaries of Traffic Data}
+\label{sec:rw-traffic}
+\citet{pincay2021} mine linguistic summaries from road traffic data with the quantifiers
+\emph{few}, \emph{about half} and \emph{most}, a validity threshold for reporting a summary,
+and the Simpful library for fuzzy logic \citep{spolaor2020}. In their conclusion they name
+two extensions as future work: combining validity with existing quality measures in the
+sense of Hudec et al., and checking validity by region, to see whether the data distribution
+skews the summaries \citep[§5]{pincay2021}. The same group has continued with geospatial
+traffic data \citep{pincay2022} and with Swiss traffic safety analysis combining machine
+learning and a local language model \citep{pincay2026}. Our work transfers the approach to
+public transport and implements both extensions named in \citet{pincay2021}; we use their
+configuration as a methodological baseline, not as a reproduction of their numbers, since
+their data is not public.
+
+\subsection{Linguistic Summaries as Explanations}
+\label{sec:rw-xai}
+Linguistic summaries have been proposed as a form of explainable artificial intelligence.
+\citet{plenary2022} explain the behaviour of black-box models in natural language through
+fuzzy linguistic summaries, and \citet{wrede2023} work towards making linguistic summaries
+themselves explainable. In PLENARY the summaries describe a separate black-box model; in our
+assistant the summaries are the model: the decision word is decoded from
+the same fuzzy proportion that the main explanation sentence states, so the explanation
+cannot diverge from how the decision was made.
+
+\subsection{Language Models and Quantified Statements}
+\label{sec:rw-llm}
+\citet{eida2026} study how language models generate quantified statements from tables and
+verify them by executing checks against the source table. Their truth conditions are crisp
+and set-based; ``most'' is true if more than half of the relevant rows satisfy the property
+\citep{eida2026}. Their tables are synthetic and small, and their verification
+functions are themselves written by a language model. We adopt their set-based truth
+conditions as our crisp checker, implemented as deterministic code, and add a fuzzy checker
+that assigns graded truth to vague quantifiers and summarizers, on real data.
+\citet{gaitan2025} combine language models with fuzzy linguistic summaries of raw sensor
+data in diabetes care, with a methodology for fine-tuning and evaluating the models; the
+truth of the quantifiers that the language model writes is not recomputed from the data. The
+language model in our audit is Apertus \citep{apertus2025}, an open model from the Swiss AI
+Initiative that we run locally.
+
+\subsection{Passengers' Perception of Punctuality}
+\label{sec:rw-perception}
+Official punctuality measures and passengers' experience differ. A study of passengers in
+Great Britain found that passengers judge punctuality more strictly than the industry
+measure and expect trains to arrive within about one minute of the timetable
+\citep{transportfocus2015}. We use this finding as motivation only. Swiss perception data
+does not exist for our purpose, and we do not collect new data from people. Instead, our
+perception-aware view makes ``late'' depend on a quantity the passenger knows precisely:
+their own time to change trains.
+
+\subsection{Positioning}
+\label{sec:rw-position}
+Taken together, linguistic summaries with quality measures exist for official statistics
+and maps \citep{hudec2018,hudec2022}, linguistic summaries of traffic exist without them
+\citep{pincay2021}, linguistic summaries explain other models \citep{plenary2022} and are
+themselves made explainable \citep{wrede2023},
+and quantified statements of language models are verified crisply \citep{eida2026}. This
+paper connects these strands in one citizen-facing artefact: summaries with Hudec's quality
+measures on public transport data are the decision core of an assistant, the decision depends
+on the passenger's own margin, and the same truth computation serves as a fuzzy checker for
+language-model answers, compared against a crisp one.

@@ -1,5 +1,90 @@
 % UC-071: Prototype (practical part); installation and manual are in the appendix (UC-061).
+% TODO(verify): add a verified design-science reference to docs/literature.md before citing
+% one here; the framing below is stated without citation.
 \section{Prototype}
 \label{sec:prototype}
-\placeholder{UC-071: architecture, user interface, example answer; see
-Appendix~\ref{app:prototype}.}
+
+The prototype is the artefact of this design-oriented study: it makes the concept of
+Section~\ref{sec:concept} usable by a commuter and serves as the object of the evaluation.
+Its design follows three requirements derived from the problem. First, the answer must be
+about the passenger's own trip, not about the network. Second, every statement must be
+checkable against the data, so the interface shows how true each sentence is and how much
+data it rests on. Third, the assistant must not invent anything, so no language model is
+called at run time.
+
+\subsection{Architecture}
+\label{sec:architecture}
+The prototype is a web application built with Streamlit on top of the same library that
+produces the evaluation results. The data pipeline ingests the daily Ist-Daten files,
+validates them, builds a table of measured train arrivals and reconstructs the connections
+at the three study hubs (Zürich HB, Bern and Olten) from pairs of arriving and departing
+trains. Hub stops are matched by their official identifiers rather than by display names, so
+the crisp and the fuzzy view always use the same arrivals. The assistant library contains
+the vocabulary, the truth engine, the quality measures, the summary miner, the decision
+engine and the crisp official view. The user interface only renders what the library
+returns: a separate, tested rendering layer derives every text and number on the screen from
+the answer object, so the interface cannot show a number the engine did not compute.
+
+\subsection{User Interface}
+\label{sec:ui}
+The commuter enters the question in a form: the hub, the arriving and the departing line, the
+time of day, the days and their time to change, chosen with a slider. Station names and time
+bands come directly from the study configuration, so that the questions match the data
+exactly. The answer is organised in three views (Appendix~\ref{app:manual} and
+Figures~\ref{fig:app-form}--\ref{fig:app-chatbot}).
+
+\subsubsection*{Answer} A coloured badge shows the decision word. Below it, under \emph{Why},
+each explanation sentence is shown with a bar for its truth, coloured by how true the
+sentence is (green, amber or red), the number of observations it is based on and its
+coverage. The colour of the bar describes the sentence, not the risk: a fully true sentence
+that explains a risky answer has a green bar next to a red badge.
+
+\subsubsection*{Official view} The passenger's verdict and its sentence are shown side by side
+with the official punctuality verdict and its crisp sentences. This view is the
+citizen-facing form of SRQ2: when the two verdicts differ, the passenger sees that their own
+time to change is what makes the difference.
+
+\subsubsection*{Chatbot view} For questions of the evaluation set, the view shows the answer
+that the language model wrote, stored from the offline runs, with a coloured mark per claim
+from the fuzzy checker and a grey mark for claims that cannot be checked. This view is the
+citizen-facing form of SRQ3.
+
+Every view ends with the data source and the month of the measurements. The assistant is not
+branded as a product of any operator, because the data covers all operators.
+
+\subsection{Design Choices}
+\label{sec:design}
+Several choices follow from the requirement that every statement be checkable.
+\begin{itemize}
+  \item \emph{One sentence about the passenger, always.} Every answer contains a sentence
+  about the passenger's own connections, either with the best-fitting quantifier or, in the
+  vocabulary gap, with the measured share. A risky verdict without any statement about the
+  passenger's connections would ask the passenger to trust the decision blindly.
+  \item \emph{Truth next to the sentence, not hidden.} Showing the truth and the number of
+  observations lets a passenger see that ``few of your connections are missed'' rests on many
+  trains or on a handful.
+  \item \emph{Both views on one screen.} The official verdict is not hidden but shown next to
+  the passenger's verdict, with its own sentences, so the passenger can see why the two
+  differ.
+  \item \emph{No generation at run time.} The chatbot view shows stored answers from the
+  evaluation only. A citizen-facing tool that generates new sentences would need the
+  checker in the loop for every sentence, which is outside the scope of this prototype.
+\end{itemize}
+
+\subsection{Example}
+\label{sec:example}
+On the synthetic test data shown in the figures, a commuter at Zürich HB arriving with the
+IC1 in the morning peak and three minutes to change receives the answer \emph{risky}: about
+half of the observed connections would have been missed. With ten minutes to change, the
+same trains give the answer \emph{safe}. The official view, which ignores the time to
+change, rates the same arrivals \emph{risky}, because about half of them are three or more
+minutes late. The figures will be replaced by screenshots of the real data once the full
+evaluation has run.
+
+\subsection{Verification in the Prototype}
+\label{sec:proto-verification}
+Each answer the prototype shows can be verified with the same function that the evaluation
+uses as a correctness gate (Section~\ref{sec:explanation}). The rendering layer is tested to
+show only numbers that appear in the answer, and the application is tested end to end on the
+synthetic data. Installation from a clean machine takes five commands
+(Appendix~\ref{app:install}).
