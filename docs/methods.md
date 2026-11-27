@@ -270,7 +270,48 @@ region (district) i. The measure relates the region's truth v_i to the region's 
   makes that change together with `tests/test_interfaces.py`.
 
 ## 4. Summary miner (UC-023)
-TODO.
+
+Implementation: `urban_computing.fuzzy.miner` (pure NumPy), `evaluation/segments.py`,
+`scripts/mine_summaries.py` (`make mine` → `data/processed/summaries.parquet` and
+`summaries_report.json`).
+
+- **Enumeration.** Per segment and for every summarizer word S of the attribute
+  (`arrival_delay_minutes` = `delay_min`) and every quantifier Q of the chosen set (core by
+  default), the miner produces:
+  - the simple summary "Q x are S": truth §2, coverage C = 1 and Qc = v (§3.2,
+    hudec2018 p. 987);
+  - one restricted summary "Q R x are S" per restriction R: truth §2 with `mining.tnorm`,
+    coverage §3.1 over all records of the segment, and Qc §3.2, always with
+    `mining.qc_tnorm` (product, D-027).
+
+  All records are returned, valid or not; a summary is valid if truth ≥ β
+  (`mining.beta` = 0.6).
+- **Restrictions.**
+  - Crisp masks, one per value of `operator` (operator_abbr), `product`, `line`, `canton`
+    and `time_band`. These are partitions: each arrival has at most one value, and a blank
+    canton has none.
+  - Plus the overlapping weekday groups weekday (Mon–Fri), monday, friday and weekend,
+    derived from `weekday`.
+  - For crisp masks the product and min t-norms give the same truth.
+- **Segments.** The whole network, and the network per study half (`half` = first /
+  second) for the stability check (H1b).
+- **Missing values.** Rows with NaN delay (cancelled or unmeasured arrivals) are dropped
+  row-wise (§2).
+  - `n` = complete rows in the segment (in R: rows with μ_R > 0).
+  - `n_dropped` = the dropped rows there.
+  - The report lists the dropped rows per segment.
+- **Small segments.** Records with n < 30 are kept and flagged `small_n`. A restriction with
+  no complete row has NaN truth and no coverage or quality.
+- **Qc report.** For each quantifier, the report counts the valid summaries (truth ≥ β) and
+  how many of them Qc drops (C < 0.5). Restricted `few` summaries can get low coverage by
+  design: few records lie in R ∩ S.
+- **Sentences.** Template-based and deterministic: "<Q> of the <operator> <product> <line>
+  <arrivals> <at hub> <in canton …> <time band> <weekday group> are <S>." Example:
+  "About half of the IC arrivals in the morning peak are slightly late."
+- **Fast path.** For partition families, `mine_categorical` computes every value's sums
+  with `np.bincount` in O(rows), giving the same records as `mine` with dense masks
+  (tested). On 4 million synthetic rows (600 lines, 60 operators, 26 cantons, three
+  segments, 25 308 records) the whole run takes about 20 s on a laptop.
 
 ## 5. Assistant decision rule (UC-031)
 TODO (UC-031): fuzzy decision rule.
