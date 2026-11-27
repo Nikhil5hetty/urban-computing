@@ -153,8 +153,12 @@ cite it only through hudec2018, which states the rule as an equation.
 `coverage_from_ratio` (f), `coverage(mu_R, mu_S, params)` (reads `mining.coverage_r1/r2`),
 `quality_qc(truth, cov)` (product only), `ordinal_sum` and
 `regional_quality(per_region_truth, region_sizes) -> dict` (D-027). Missing memberships (NaN)
-are dropped row-wise as in §2, so n counts complete records. Every test vector below is
-reproduced in `tests/test_quality.py`.
+are dropped row-wise as in §2, so n counts complete records. Coverage applies only to
+summaries with a restriction: a basic summary "Q x are S" covers the whole data set, so
+`coverage(None, …)` = 1 and Qc = v (hudec2018 p. 987, after Eq. (9)). `ordinal_sum`
+implements the general ordinal sum for a split point a ∈ (0, 1) (A1 = xy/a,
+A2 = a + (1 − a)·S(u, v)), which reduces to Eqs. (14)–(16) for the paper's a = 0.5. Every
+test vector below is reproduced in `tests/test_quality.py`.
 
 ### 3.1 Coverage (summaries with restriction)
 

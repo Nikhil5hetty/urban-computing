@@ -66,7 +66,7 @@ def test_coverage_counts_crisp_support_over_all_records():
     mu_r = np.array([0.0, 0.01, 1.0, 0.5, 0.2])
     mu_s = np.array([1.0, 0.01, 0.0, 0.3, 1.0])
     assert included_ratio(mu_r, mu_s) == pytest.approx(3 / 5)
-    assert included_ratio(None, mu_s) == pytest.approx(4 / 5)  # no restriction: mu_R = 1
+    assert included_ratio(None, mu_s) == pytest.approx(4 / 5)  # support of S (not used for Qc)
 
 
 def test_coverage_edge_cases():
@@ -211,3 +211,49 @@ def test_fuzzy_quality_is_pure_numpy():
         for a in (n.names if isinstance(n, ast.Import) else [None])
     }
     assert not {m.split(".")[0] for m in mods if m} & {"pandas", "duckdb", "yaml", "pathlib"}
+
+
+# --------------------------------------------------------------------- review #54
+
+
+def test_unrestricted_summary_has_full_coverage_and_keeps_qc():
+    """hudec2018 p. 987: basic summaries cover the whole data set (C = 1)."""
+    mu_s = np.zeros(1000)
+    mu_s[:50] = 1.0  # "few trains are very late": 50 of 1000 very late
+    c = coverage(None, mu_s, MINING)
+    assert c == 1.0
+    assert quality_qc(1.0, c) == 1.0 and quality_qc(0.6, c) == pytest.approx(0.6)  # Qc = v
+    assert coverage(None, np.zeros(10), MINING) == 1.0  # even if no record is S
+    assert math.isnan(coverage(None, np.array([np.nan, np.nan]), MINING))
+    assert math.isnan(coverage(None, np.array([]), MINING))
+    # the restricted case is unchanged
+    mu_r, mu_s = records(2000, 175)
+    assert coverage(mu_r, mu_s, MINING) == pytest.approx(0.5377, abs=5e-5)
+
+
+@pytest.mark.parametrize("a", [0.1, 0.25, 0.4, 0.5, 0.6, 0.9])
+def test_general_ordinal_sum_stays_in_unit_square(a):
+    assert ordinal_sum(0.0, 0.0, a=a) == pytest.approx(0.0, abs=1e-12)
+    assert ordinal_sum(1.0, 1.0, a=a) == pytest.approx(1.0)
+    g = np.linspace(0, 1, 21)
+    vals = [ordinal_sum(float(x), float(y), a=a) for x in g for y in g]
+    assert min(vals) >= -1e-12 and max(vals) <= 1 + 1e-12
+    assert ordinal_sum(a, 0.7, a=a) == pytest.approx(0.7)  # a is neutral
+    # pieces: xy / a below a, a + (1 - a) S(u, v) above a
+    lo = a / 2
+    assert ordinal_sum(lo, lo, a=a) == pytest.approx(lo * lo / a)
+    hi = (1 + a) / 2
+    u = (hi - a) / (1 - a)
+    assert ordinal_sum(hi, hi, a=a) == pytest.approx(a + (1 - a) * (2 * u - u * u))
+
+
+def test_general_form_equals_paper_form_at_one_half():
+    for x in np.linspace(0, 1, 11):
+        for y in np.linspace(0, 1, 11):
+            lo_x, lo_y, hi_x, hi_y = min(0.5, x), min(0.5, y), max(0.5, x), max(0.5, y)
+            paper = 2 * lo_x * lo_y + (-1 + 2 * hi_x + 2 * hi_y - 2 * hi_x * hi_y) - 0.5
+            assert ordinal_sum(float(x), float(y)) == pytest.approx(paper)
+    with pytest.raises(ValueError):
+        ordinal_sum(0.3, 0.3, a=0.0)
+    with pytest.raises(ValueError):
+        ordinal_sum(0.3, 0.3, a=1.0)

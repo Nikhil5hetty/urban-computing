@@ -45,8 +45,9 @@ def included_ratio(mu_R: np.ndarray | None, mu_S: np.ndarray) -> float:
     hudec2022 Eq. (18), p. 332).
 
     m_i = 1 iff mu_S(x_i) > 0 and mu_R(x_i) > 0 (crisp support; any degree above 0 counts),
-    n = all (non-missing) records, not only those in R. mu_R None = no restriction (1).
-    Returns a float in [0, 1]; NaN if there are no records.
+    n = all (non-missing) records, not only those in R. mu_R None treats every record as in R
+    (support of S alone); this is NOT used for Qc: an unrestricted summary has C = 1 (see
+    `coverage`). Returns a float in [0, 1]; NaN if there are no records.
     """
     s = _memberships(mu_S, "mu_S")
     r = np.ones_like(s) if mu_R is None else _memberships(mu_R, "mu_R")
@@ -81,12 +82,18 @@ def coverage(mu_R: np.ndarray | None, mu_S: np.ndarray, params: dict | None = No
     """Degree of sufficient coverage C in [0, 1] of "Q R x are S" (hudec2018 Eqs. (A.3)-(A.4),
     p. 1002 = hudec2022 Eqs. (18)-(19), p. 332).
 
-    Inputs: memberships mu_R (None = no restriction) and mu_S in [0, 1], same length;
-    `params` = config `mining` (or a whole config) with `coverage_r1`, `coverage_r2`
-    (defaults: D-027 values 0.02 / 0.15). Returns C = f(i_C) (see `included_ratio`,
-    `coverage_from_ratio`); NaN if there are no records. Raises ValueError on bad input.
+    Inputs: memberships mu_R and mu_S in [0, 1], same length; `params` = config `mining`
+    (or a whole config) with `coverage_r1`, `coverage_r2` (defaults: D-027 values
+    0.02 / 0.15). Returns C = f(i_C) (see `included_ratio`, `coverage_from_ratio`).
+    Coverage is defined only for summaries with a restriction: for the basic summary
+    "Q x are S" (mu_R None) the whole data set is covered, so C = 1 (hudec2018 p. 987, after
+    Eq. (9): n in the denominator of Eqs. (5)-(6) covers all records). NaN if there are no
+    (complete) records. Raises ValueError on bad input.
     """
     r1, r2 = _coverage_params(params)
+    if mu_R is None:
+        s = _memberships(mu_S, "mu_S")
+        return 1.0 if (~np.isnan(s)).any() else float("nan")
     return coverage_from_ratio(included_ratio(mu_R, mu_S), r1, r2)
 
 
@@ -113,13 +120,18 @@ def quality_qc(truth: float, cov: float, tnorm: str = "product", c_min: float = 
 def ordinal_sum(x: float, y: float, a: float = ORDINAL_SUM_SPLIT) -> float:
     """Ordinal sum A(x, y) = A1(a ^ x, a ^ y) + A2(a v x, a v y) - a (hudec2022 Eq. (13), p. 330).
 
-    A1(x, y) = 2xy on [0, a]^2 (rescaled product, Eq. (14)); A2(x, y) = -1 + 2x + 2y - 2xy
-    on [a, 1]^2 (rescaled probabilistic sum, Eq. (15)); in the mixed regions this is
-    x + y - 1/2 (Eq. (16), p. 331). Formulas for a = 0.5, as in the paper.
+    General form for split point a in (0, 1): A1 = a * T(x/a, y/a) = xy / a on [0, a]^2
+    (rescaled product T), A2 = a + (1 - a) * S((x - a)/(1 - a), (y - a)/(1 - a)) on [a, 1]^2
+    (rescaled probabilistic sum S(u, v) = u + v - uv). For the paper's a = 0.5 these are
+    2xy (Eq. (14)) and -1 + 2x + 2y - 2xy (Eq. (15)), and the mixed regions give
+    x + y - 1/2 (Eq. (16), p. 331). Result in [0, 1], A(0, 0) = 0, A(1, 1) = 1.
     """
+    if not 0.0 < a < 1.0:
+        raise ValueError(f"split point a must be in (0, 1), got {a}")
     lo_x, lo_y, hi_x, hi_y = min(a, x), min(a, y), max(a, x), max(a, y)
-    a1 = 2.0 * lo_x * lo_y
-    a2 = -1.0 + 2.0 * hi_x + 2.0 * hi_y - 2.0 * hi_x * hi_y
+    a1 = lo_x * lo_y / a
+    u, v = (hi_x - a) / (1.0 - a), (hi_y - a) / (1.0 - a)
+    a2 = a + (1.0 - a) * (u + v - u * v)
     return float(a1 + a2 - a)
 
 
