@@ -89,6 +89,7 @@ def test_mock_cli_matrix_is_reproducible_and_parseable(questions_path, tmp_path,
     monkeypatch.setitem(sys.modules, "transformers", None)
 
     config = yaml.safe_load(runner.STUDY_CONFIG.read_text(encoding="utf-8"))["llm"]
+    assert config["model_revision"] == "b946d40447b2b597999b9c86d44bee0b452c919f"
     roots = [tmp_path / "first", tmp_path / "second"]
     for root in roots:
         run_llm.main(["--mock", "--questions", str(questions_path), "--out-dir", str(root)])
@@ -107,7 +108,7 @@ def test_mock_cli_matrix_is_reproducible_and_parseable(questions_path, tmp_path,
         assert [row["question_id"] for row in records] == ["q0", "q1"]
         for row in records:
             assert row["mock"]
-            assert row["model_revision"] == config.get("model_revision", runner.APERTUS_REVISION)
+            assert row["model_revision"] == config["model_revision"]
             assert row["parse_status"] == "json"
             assert row["elapsed_seconds"] == 0.0
             assert len(row["prompt_hash"]) == 64

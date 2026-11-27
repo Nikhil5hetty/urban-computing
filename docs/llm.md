@@ -2,9 +2,16 @@
 
 The configured model is `swiss-ai/Apertus-8B-Instruct-2509`. Staging and inference use
 the full commit hash from `llm.model_revision` when set in `config/study.yaml`. The
-current config uses the runner's Apertus fallback, `b946d40447b2b597999b9c86d44bee0b452c919f`.
+checked-in config explicitly pins `b946d40447b2b597999b9c86d44bee0b452c919f`.
 Inference loads the weights and tokenizer at the resolved revision and records it in each row.
 [Swiss AI model revision](https://huggingface.co/swiss-ai/Apertus-8B-Instruct-2509/tree/b946d40447b2b597999b9c86d44bee0b452c919f).
+
+## Review scope exception
+
+The owner's PR #62 review explicitly requests the `config/study.yaml` revision pin
+as an exception to UC-040's original `touches:` list. This records the existing model
+snapshot in the study config, as required by the ticket, without changing it. Staging,
+inference and output metadata all use the shared revision resolver.
 
 ## Prompt evidence
 
