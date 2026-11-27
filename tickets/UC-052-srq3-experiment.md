@@ -3,7 +3,7 @@ id: UC-052
 title: "SRQ3 experiment: LLM truthfulness and checker disagreement"
 epic: evaluation
 milestone: M3
-status: in-progress
+status: done
 owner: agent
 estimate_h: 3
 depends_on: [UC-042, UC-053]        # hard: needs merged code
