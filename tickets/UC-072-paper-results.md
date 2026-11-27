@@ -35,6 +35,7 @@ results.json and docs/data-quality.md.
 - [ ] Limitations state that SRQ2 connections exclude pairs with a cancelled feeder train and treat DST-hour pairs on 2026-10-25 as unknown (D-025) (PM review of #50)
 - [ ] Discussion reports I4's `vocabulary_gap_answers`: how often no core quantifier reaches β for p_miss (gaps [0.21, 0.38] ∪ [0.62, 0.70]) and the assistant falls back to the measured share (D-029) — a limitation of the three-word vocabulary (PM review of #56)
 - [ ] Re-take `paper/figures/app_*.png` with `app/screenshots.py` on real data (not the synthetic fixture, which shows a warning banner), and the chatbot view once UC-040 / UC-033 cached outputs exist (PM review of #58)
+- [ ] Replace the three `% TODO(verify)` comments left by UC-071 with citations now in docs/literature.md: intro 3-minute rule → `bav2026` (§1, p. 3); related §2.1 CWW / Perceptual Computer → `zadeh1996`, `mendel2010`; prototype design-science framing → `hevner2004` (PM follow-up of #64)
 
 ## Tests
 I6 checker; LaTeX builds.
