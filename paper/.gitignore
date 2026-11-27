@@ -1,0 +1,13 @@
+# Generated from results/results.json by `make paper-numbers` (invariant I6).
+numbers.tex
+# LaTeX build outputs
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+*.pdf

@@ -3,7 +3,7 @@ id: UC-070
 title: Paper skeleton (acmart) and numbers export from results.json
 epic: paper
 milestone: M3
-status: todo
+status: done
 owner: agent
 estimate_h: 2
 depends_on: []        # hard: needs merged code
