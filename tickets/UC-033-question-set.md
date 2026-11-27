@@ -29,6 +29,7 @@ drawn from segments that exist in the data. Used by SRQ2, SRQ3 and the prototype
       boundary), selected by rule, not by hand
 - [ ] `make questions` works
 - [ ] Hub names and time bands come from `config/study.yaml` (Question validation is exact-match, e.g. "Zürich HB") (PM review of #38)
+- [ ] Hub rows are selected by stop identifier using the resolved `config["connections"]["hub_stop_ids"]` (UC-014 normalisation), the same mapping the crisp baseline uses, so fuzzy and crisp answers cover the same arrivals (PM review of #51)
 
 ## Tests
 `tests/test_questions.py` on the fixture (stratification, determinism).

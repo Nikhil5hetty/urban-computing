@@ -42,6 +42,7 @@ core: encoder (data → fuzzy words) → engine (quantified truth) → decoder (
 - [ ] Cancellations count as missed: connections with `b_cancelled = true` (actual gap NaN) are encoded as μ_missed = 1, μ_tight = μ_comfortable = 0 before calling the truth engine (which drops NaN rows); a test shows that cancellations raise p_miss (PM review of #39)
 - [ ] Same cancellation convention as the checkers: `b_cancelled` → slack −∞ (μ_missed = 1) (PM review of #43)
 - [ ] Register invariant I4 with `@registry.invariant("I4")` in a module listed in `registry.EXPERIMENT_MODULES` (e.g. `urban_computing.evaluation.invariants`); without it the runner blocks every verdict (PM review of #44)
+- [ ] Hub rows are selected by stop identifier using the resolved `config["connections"]["hub_stop_ids"]` (UC-014 normalisation), the same mapping the crisp baseline uses, so fuzzy and crisp answers cover the same arrivals (PM review of #51)
 
 ## Tests
 `tests/test_engine.py`: monotonicity, margin effect, I4 checker on fixture, small-n fallback.
