@@ -50,7 +50,10 @@ crisp_baseline:
 mining:
   beta: 0.6                         # validity threshold from Pincay et al. 2021
   tnorm: product                    # ablation: min
-  coverage_threshold: 0.5           # Hudec: Qc = 0 if C < 0.5
+  coverage_threshold: 0.5           # Qc = t(v, C) if C >= 0.5 else 0 (hudec2018 Eq. 9, p. 987; D-027)
+  qc_tnorm: product                 # Qc needs a nonidempotent t-norm (hudec2018 Eq. 9); not ablated (D-027)
+  coverage_r1: 0.02                 # coverage f(i_C): C = 0 at i_C <= r1 (hudec2018 p. 1002; D-027)
+  coverage_r2: 0.15                 # C = 1 at i_C >= r2; sensitivity r2 in {0.10, 0.15, 0.20} in UC-054
 
 llm:
   model_id: swiss-ai/Apertus-8B-Instruct-2509   # verify exact HF id in UC-040

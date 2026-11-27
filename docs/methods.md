@@ -53,8 +53,10 @@ quantifiers form a uniform family with the grid 0.2 / 0.4 / 0.6 / 0.8 and crosso
 | most ("most of") | [0.6, 0.8, +∞, +∞] | [0.5, 0.85, +∞, +∞] |
 
 So our breakpoints do **not** match the baseline paper. Ours are narrower and sit closer to
-½. Whether to switch is proposed decision D-028; the config is unchanged until the PM
-decides (AGENTS §4.3).
+½.
+- **Decision D-028 (accepted):** the study keeps our breakpoints.
+- The methodological baseline UC-024 uses the Fig. 2 curves above.
+- The paper reports the difference.
 
 For comparison, Hudec's "most of" is [0.5, 0.8, +∞, +∞]: hudec2018 Eq. (4), p. 985, and
 hudec2022 Eq. (4), p. 325.
@@ -170,7 +172,7 @@ hudec2022, §3.2, pp. 332–333.
   - hudec2022 (p. 332) adds that suitable values depend on the length of the summary (the
     number of attributes in R and S). It uses the same values in its worked example (2000
     records; 15 % of the data in the R and S parts counts as fully sufficient coverage).
-  - These values are not yet in `config/study.yaml`; see the proposed decision D-027.
+  - Config: `mining.coverage_r1: 0.02`, `mining.coverage_r2: 0.15` (D-027); UC-054 checks r2 ∈ {0.10, 0.15, 0.20}.
 - **Worked example** (p. 332, Table 2; UC-022 test vectors). n = 2000, r1 = 0.02, r2 = 0.15:
 
   | Summary | records with m_i = 1 | i_C | C |
@@ -197,7 +199,8 @@ hudec2022, §3.2, pp. 332–333.
   needed.
 - **Caveat for the min ablation.** min is idempotent, so the `min` ablation of
   `mining.tnorm` is **not** a valid choice for Qc under hudec2018. UC-022 should compute Qc
-  with the product t-norm even when the truth ablation uses min (D-027 (2)).
+  with the product t-norm even when the truth ablation uses min (D-027;
+  `mining.qc_tnorm: product`).
 - **Properties for tests.** With the product, Qc ≤ v; Qc = 0 whenever C < 0.5, in
   particular when i_C ≤ r1 (C = 0).
 - **Worked examples in hudec2018** (§3.5, p. 997):
@@ -251,8 +254,9 @@ region (district) i. The measure relates the region's truth v_i to the region's 
 - **Uninorm alternative.** The paper also discusses a uninorm U_1 (Eq. (9), p. 328;
   Eq. (10), p. 329). It gives 0.0649 for D1 and is unstable near (0, 1), so it was not
   adopted; listed here only for completeness.
-- **Interface note.** The measure yields one value per region. The frozen stub
-  `regional_quality(per_region_truth, weights) -> float` returns one float; see D-027.
+- **Interface note.** The measure yields one value per region. D-027 (accepted) changes the
+  stub to `regional_quality(per_region_truth, region_sizes) -> dict[str, float]`. UC-022
+  makes that change together with `tests/test_interfaces.py`.
 
 ## 4. Summary miner (UC-023)
 TODO.

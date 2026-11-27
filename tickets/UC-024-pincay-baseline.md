@@ -27,6 +27,7 @@ evaluation runner, plus the same table per half.
 - [ ] Paper text calls it a "methodological baseline" (D-003); no comparison of numbers
       with their traffic-message data
 - [ ] Registered as an experiment in the project runner (UC-053)
+- [ ] D-028: use Pincay et al.'s own quantifier curves from their Fig. 2 (few [−∞,−∞,0.2,0.4], about_half [0.2,0.4,0.6,0.8], most [0.6,0.8,+∞,+∞]; methods §1) via a config override, not our study vocabulary; state the difference in the table caption (UC-002)
 
 ## Tests
 `tests/test_baseline.py` on the fixture.

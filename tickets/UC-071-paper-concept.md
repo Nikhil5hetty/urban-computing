@@ -30,6 +30,8 @@ Concept part of the paper (guidelines: concept + practical part).
 - [ ] Only references with status `verified` in docs/literature.md are cited
 - [ ] No numbers typed by hand (I6)
 - [ ] 8–14 pages for these sections together
+- [ ] Related work on Pincay 2022 follows the outcome of issue #53 (does the chapter already cover regions / quality measures?); until then claim only what pincay2021 §5 states (both are future work) (UC-002)
+- [ ] Methods text states that our quantifier breakpoints differ from Pincay et al. 2021 Fig. 2 and why (D-028) (UC-002)
 
 ## Tests
 `scripts/check_paper_numbers.py` passes; LaTeX builds.

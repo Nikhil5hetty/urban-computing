@@ -27,6 +27,7 @@ robustness.
 - [ ] A "verdict_changes" column flags any ablation that flips a pre-registered verdict
 - [ ] Runtime documented
 - [ ] Ablation: crisp checker with official `late` = delay ≥ 3 min (SBB, D-007) instead of the 0.5-cut partition; report how H3c changes (PM review of #43)
+- [ ] D-027: coverage sensitivity r2 ∈ {0.10, 0.15, 0.20} (r1 = 0.02) for the SRQ1 coverage / Qc results; Qc stays on the product t-norm in the t-norm ablation (UC-002)
 
 ## Tests
 `tests/test_ablations.py` on the fixture (override mechanism works).
