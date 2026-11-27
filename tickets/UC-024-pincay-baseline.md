@@ -3,7 +3,7 @@ id: UC-024
 title: Pincay et al. (2021) configuration as methodological baseline
 epic: fuzzy
 milestone: M1
-status: in-progress
+status: done
 owner: agent
 estimate_h: 1
 depends_on: [UC-023]        # hard: needs merged code
@@ -31,3 +31,25 @@ evaluation runner, plus the same table per half.
 
 ## Tests
 `tests/test_baseline.py` on the fixture.
+
+## Real-data run
+
+After Batch A has produced `data/processed/arrivals.parquet`, run:
+
+```sh
+uv run --locked python -m urban_computing.evaluation.run --config config/study.yaml --only baseline
+wc -l results/tables/baseline_pincay.csv results/tables/baseline_pincay_first.csv results/tables/baseline_pincay_second.csv
+```
+
+Expect 13 lines per file, including the header. A half with no measured delays has blank
+truth values and all validity flags are false.
+
+## Manuscript wording for UC-071 and UC-072
+
+**Methods.** We apply the unrestricted truth computation of Pincay et al. (2021, Eq. 2)
+as a methodological baseline for Swiss train arrival delays. The analysis uses the Swiss
+Ist-Daten arrivals and the study's four arrival-delay membership functions.
+
+**Table caption.** Methodological baseline for Swiss train arrivals. Truth uses the
+quantifier curves from Pincay et al. (2021, Fig. 2, p. 172), whose breakpoints differ
+from those of the main study vocabulary (D-028). A summary is valid at truth ≥ 0.6.
