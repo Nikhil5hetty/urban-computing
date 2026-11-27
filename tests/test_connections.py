@@ -4,7 +4,7 @@ import csv
 import json
 import subprocess
 import sys
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -14,7 +14,7 @@ import pytest
 import yaml
 
 from tests.factories import DEFAULT_DAY, assert_schema, stop_events, ts
-from urban_computing.data.connections import build_connections
+from urban_computing.data.connections import build_connections, build_connections_file
 from urban_computing.data.schemas import CONNECTIONS, NULLABLE, TZ
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -182,7 +182,97 @@ def test_cli_and_daily_counts(tmp_path, config):
     hubs = json.loads(output.with_name("connections_log.json").read_text())["hubs"]
     assert hubs["Bern"]["real_share"] is None
     assert hubs["Olten"]["matched_ids"] == HUB_IDS["Olten"]
-    assert hubs["Olten"]["by_day"]["2026-10-03"] == {"candidate_pairs": 2, "pairs": 2}
+    assert hubs["Olten"]["by_day"]["2026-10-03"]["candidate_pairs"] == 2
+    assert hubs["Olten"]["by_day"]["2026-10-03"]["pairs"] == 2
     assert hubs["Olten"]["candidate_pairs"] == 4
     assert hubs["Olten"]["real_share"] == 0.75
     assert sum(hub["pairs"] for hub in hubs.values()) == len(expected)
+
+
+def test_dst_folds_and_candidate_outcomes(tmp_path, config):
+    day = date(2026, 10, 25)
+    rows = []
+    for name, time, arrival_overrides, departure_overrides in [
+        ("first_fold", "00:00", {}, {}),
+        ("second_fold", "01:00", {}, {"cancelled": True}),
+        ("outside", "02:00", {}, {}),
+        ("cancelled_a", "03:00", {"cancelled": True}, {}),
+        ("forecast_a", "04:00", {"arrival_status": "FORECAST"}, {}),
+        ("forecast_b", "05:00", {}, {"departure_status": "FORECAST"}),
+        ("actual_arrival", "06:00", {"actual_arrival": pd.Timestamp("2026-10-25 01:59Z")}, {}),
+        ("actual_departure", "07:00", {}, {"actual_departure": pd.Timestamp("2026-10-25 00:00Z")}),
+        ("planned_departure", "23:56", {}, {}),
+    ]:
+        arrival = pd.Timestamp(f"2026-10-{'24' if name == 'planned_departure' else '25'} {time}Z")
+        departure = arrival + timedelta(minutes=4)
+        stop = (
+            {"stop_id": "8503000", "sloid": "ch:1:sloid:3000"}
+            if name == "planned_departure"
+            else {}
+        )
+        rows.extend(
+            [
+                {
+                    "operating_day": day,
+                    "journey_id": name,
+                    "planned_arrival": arrival,
+                    "actual_arrival": departure if name == "first_fold" else arrival,
+                    **stop,
+                    **arrival_overrides,
+                },
+                {
+                    "operating_day": day,
+                    "journey_id": f"B_{name}",
+                    "planned_departure": departure,
+                    "actual_departure": arrival if stop else departure,
+                    **stop,
+                    **departure_overrides,
+                },
+            ]
+        )
+    events = stop_events(rows)
+    ist = tmp_path / "ist"
+    ist.mkdir()
+    events.to_parquet(ist / f"{day}.parquet", index=False)
+    atlas = tmp_path / "atlas.csv"
+    atlas.write_text(
+        "designationOfficial;isoCountryCode;number;sloid\n"
+        + "".join(f"{name};CH;{ids[0]};{ids[1]}\n" for name, ids in HUB_IDS.items()),
+        encoding="utf-8",
+    )
+    output = build_connections_file(tmp_path, atlas, CONFIG, tmp_path / "connections.parquet")
+
+    ambiguous = [
+        "first_fold",
+        "second_fold",
+        "actual_arrival",
+        "actual_departure",
+        "planned_departure",
+    ]
+    for frame in (build_connections(events, HUB_IDS, config), pd.read_parquet(output)):
+        result = frame.set_index("arr_journey_id")
+        assert set(result.index) == {*ambiguous, "outside"}
+        assert result["planned_gap_min"].eq(4).all()
+        assert not result["b_cancelled"].any()
+        measured = ["actual_gap_min", "arr_delay_min", "dep_delay_min"]
+        assert result.loc[ambiguous, measured].isna().all().all()
+        assert result.loc["outside", measured].tolist() == [4, 0, 0]
+
+    hubs = json.loads(output.with_name("connections_log.json").read_text())["hubs"]
+    expected = {
+        "candidate_pairs": 8,
+        "real_pairs": 1,
+        "a_cancelled": 1,
+        "a_not_real": 1,
+        "b_not_real": 1,
+        "dst_excluded": 4,
+        "ambiguous_dst_pairs": 4,
+        "retained": 1,
+        "pairs": 5,
+    }
+    for counts in (hubs["Olten"], hubs["Olten"]["by_day"][str(day)]):
+        assert {key: counts[key] for key in expected} == expected
+        outcomes = ("a_cancelled", "a_not_real", "b_not_real", "dst_excluded", "retained")
+        assert sum(counts[key] for key in outcomes) == counts["candidate_pairs"]
+    assert hubs["Olten"]["real_share"] == 1 / 8
+    assert hubs["Zürich HB"]["ambiguous_dst_pairs"] == 1

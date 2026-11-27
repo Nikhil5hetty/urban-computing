@@ -10,6 +10,7 @@ import duckdb
 import pandas as pd
 import yaml
 
+from urban_computing.data.quality import _in_dst_hour
 from urban_computing.data.schemas import CONNECTIONS, TZ
 
 
@@ -19,7 +20,7 @@ def _local_minute(hhmm: str) -> int:
 
 
 def _stop_key(column: str) -> str:
-    # Collapse BPUIC boarding-area suffixes and SLOID descendants to the stop.
+    # Match nine-digit BPUICs by their first seven digits and SLOID descendants by stop.
     return (
         f"regexp_replace(trim({column}), "
         r"'^([0-9]{7})[0-9]{2}$|^(ch:1:sloid:[0-9]+):.*$', '\1\2')"
@@ -72,9 +73,18 @@ def _find_pairs(
     )
     # Keep the two timestamp inequalities as join keys and the hub/journey check
     # as a residual predicate so DuckDB can select its interval join.
+    dst_checks = " OR ".join(
+        _in_dst_hour(column)
+        for column in (
+            "a.planned_arrival",
+            "a.actual_arrival",
+            "b.planned_departure",
+            "b.actual_departure",
+        )
+    )
     db.execute("SET prefer_range_joins = true")
     db.execute(
-        """
+        f"""
         CREATE TEMP TABLE pairs AS
         SELECT a.hub, a.operating_day, a.journey_id AS arr_journey_id,
                b.journey_id AS dep_journey_id, a.product AS arr_product,
@@ -85,7 +95,14 @@ def _find_pairs(
                epoch(a.actual_arrival - a.planned_arrival) / 60 AS arr_delay_min,
                CASE WHEN b.dep_real
                     THEN epoch(b.actual_departure - b.planned_departure) / 60 END AS dep_delay_min,
-               b.cancelled AS b_cancelled, a.arr_real, b.dep_real,
+               b.cancelled AS b_cancelled, b.dep_real,
+               CASE
+                   WHEN a.cancelled THEN 'a_cancelled'
+                   WHEN NOT coalesce(a.arr_real, false) THEN 'a_not_real'
+                   WHEN NOT b.cancelled AND NOT coalesce(b.dep_real, false) THEN 'b_not_real'
+                   WHEN {dst_checks} THEN 'dst_excluded'
+                   ELSE 'retained'
+               END AS outcome,
                hour(a.planned_arrival) * 60 + minute(a.planned_arrival) AS local_minute
         FROM hub_events a
         JOIN hub_events b
@@ -120,11 +137,17 @@ def _connections_query(db: duckdb.DuckDBPyConnection, config: dict) -> str:
     return f"""
         SELECT {columns}
         FROM (
-            SELECT p.*, bands.time_band, isodow(operating_day) - 1 AS weekday, halves.half
+            SELECT p.* REPLACE (
+                       CASE WHEN outcome = 'retained' THEN actual_gap_min END AS actual_gap_min,
+                       CASE WHEN outcome = 'retained' THEN arr_delay_min END AS arr_delay_min,
+                       CASE WHEN outcome = 'retained' THEN dep_delay_min END AS dep_delay_min,
+                       b_cancelled AND outcome = 'retained' AS b_cancelled
+                   ),
+                   bands.time_band, isodow(operating_day) - 1 AS weekday, halves.half
             FROM pairs p
             LEFT JOIN bands ON local_minute >= bands.lo AND local_minute < bands.hi
             LEFT JOIN halves ON operating_day BETWEEN halves.lo::DATE AND halves.hi::DATE
-            WHERE arr_real AND (dep_real OR b_cancelled)
+            WHERE outcome IN ('retained', 'dst_excluded')
         )
         ORDER BY {columns}
     """
@@ -136,6 +159,7 @@ def build_connections(
     """Return CONNECTIONS from STOP_EVENTS, hub identifier lists and study config.
 
     Gaps and delays are signed elapsed minutes. Cancelled departures have null actual gaps.
+    DST-ambiguous transfers have null actual gaps and delays.
     """
     with duckdb.connect() as db:
         db.register("stop_events", stop_events)
@@ -165,26 +189,45 @@ def _hub_ids(atlas_path: Path, hubs: list[str]) -> dict[str, list[str]]:
 
 
 def _report(db: duckdb.DuckDBPyConnection, hub_stop_ids: dict[str, list[str]]) -> dict:
+    counts = (
+        "candidate_pairs",
+        "real_pairs",
+        "a_cancelled",
+        "a_not_real",
+        "b_not_real",
+        "dst_excluded",
+        "retained",
+    )
     rows = db.execute(
         """
-        SELECT hub, operating_day::VARCHAR, count(*) AS candidates,
-               count(*) FILTER (WHERE arr_real AND dep_real) AS real_pairs,
-               count(*) FILTER (WHERE arr_real AND (dep_real OR b_cancelled)) AS retained_pairs
+        SELECT hub, operating_day::VARCHAR, count(*),
+               count(*) FILTER (WHERE outcome = 'retained' AND dep_real),
+               count(*) FILTER (WHERE outcome = 'a_cancelled'),
+               count(*) FILTER (WHERE outcome = 'a_not_real'),
+               count(*) FILTER (WHERE outcome = 'b_not_real'),
+               count(*) FILTER (WHERE outcome = 'dst_excluded'),
+               count(*) FILTER (WHERE outcome = 'retained')
         FROM pairs
         GROUP BY hub, operating_day
         ORDER BY hub, operating_day
         """
     ).fetchall()
     hubs = {
-        hub: {"matched_ids": ids, "pairs": 0, "candidate_pairs": 0, "real_pairs": 0, "by_day": {}}
+        hub: {
+            "matched_ids": ids,
+            **dict.fromkeys((*counts, "pairs", "ambiguous_dst_pairs"), 0),
+            "by_day": {},
+        }
         for hub, ids in hub_stop_ids.items()
     }
-    for hub, day, candidates, real_pairs, retained in rows:
+    for hub, day, *values in rows:
+        daily = dict(zip(counts, values, strict=True))
+        daily["ambiguous_dst_pairs"] = daily["dst_excluded"]
+        daily["pairs"] = daily["retained"] + daily["ambiguous_dst_pairs"]
         entry = hubs[hub]
-        entry["pairs"] += retained
-        entry["candidate_pairs"] += candidates
-        entry["real_pairs"] += real_pairs
-        entry["by_day"][day] = {"pairs": retained, "candidate_pairs": candidates}
+        for key, value in daily.items():
+            entry[key] += value
+        entry["by_day"][day] = daily
     for entry in hubs.values():
         candidates = entry["candidate_pairs"]
         entry["real_share"] = entry["real_pairs"] / candidates if candidates else None
