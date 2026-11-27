@@ -3,7 +3,7 @@ id: UC-013
 title: Build the arrivals fact table
 epic: data
 milestone: M1
-status: todo
+status: done
 owner: agent
 estimate_h: 3
 depends_on: [UC-011]        # hard: needs merged code
