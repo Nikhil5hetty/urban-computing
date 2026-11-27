@@ -30,6 +30,7 @@ One row per REAL train arrival at a stop with all attributes needed for restrict
 - [ ] Contract test: columns and dtypes equal PROJECT.md §5
 - [ ] `make data-arrivals` works (`scripts/build_arrivals.py`)
 - [ ] Rows with planned or actual arrival in the ambiguous DST hour (2026-10-25 02:00–02:59 local) get `delay_min = null` and are counted in `arrivals_log.json`, because their delay can be off by ±60 min (PM review of #45)
+- [ ] Same arrival-event definition, cancellation handling and DST window as D-024 (UC-012), so invariant I5 and `arrivals.parquet` count the same arrivals; a test checks agreement on the fixture (PM review of #46)
 
 ## Tests
 `tests/test_arrivals.py` (fixture: known delays → exact delay_min; band assignment at
