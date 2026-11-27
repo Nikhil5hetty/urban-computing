@@ -33,6 +33,7 @@ results.json and docs/data-quality.md.
 - [ ] Total paper 16–30 pages incl. appendix
 - [ ] Nikhil reviewed and approved
 - [ ] Limitations state that SRQ2 connections exclude pairs with a cancelled feeder train and treat DST-hour pairs on 2026-10-25 as unknown (D-025) (PM review of #50)
+- [ ] Discussion reports I4's `vocabulary_gap_answers`: how often no core quantifier reaches β for p_miss (gaps [0.21, 0.38] ∪ [0.62, 0.70]) and the assistant falls back to the measured share (D-029) — a limitation of the three-word vocabulary (PM review of #56)
 
 ## Tests
 I6 checker; LaTeX builds.
