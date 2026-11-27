@@ -56,7 +56,8 @@ mining:
   coverage_r2: 0.15                 # C = 1 at i_C >= r2; sensitivity r2 in {0.10, 0.15, 0.20} in UC-054
 
 llm:
-  model_id: swiss-ai/Apertus-8B-Instruct-2509   # verify exact HF id in UC-040
+  model_id: swiss-ai/Apertus-8B-Instruct-2509
+  model_revision: b946d40447b2b597999b9c86d44bee0b452c919f  # UC-040, PM review #62
   temperatures: [0.0, 0.7]
   seeds: [1, 2, 3]
   max_new_tokens: 300
