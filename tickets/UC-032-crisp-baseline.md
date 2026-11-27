@@ -3,7 +3,7 @@ id: UC-032
 title: Crisp official-view baseline decision
 epic: assistant
 milestone: M2
-status: todo
+status: done
 owner: agent
 estimate_h: 1
 depends_on: []        # hard: needs merged code

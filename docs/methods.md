@@ -106,7 +106,33 @@ TODO: Hudec coverage C and Qc (hudec2017 / hudec2018), regional measure (hudec20
 TODO.
 
 ## 5. Assistant decision rule (UC-031)
-TODO.
+TODO (UC-031): fuzzy decision rule.
+
+### Crisp official-view baseline (UC-032)
+
+The answer an official punctuality statistic gives for the same question
+(`urban_computing.assistant.crisp.crisp_answer`, decision D-026). It ignores the passenger's
+margin by design: only crispness and the margin differ from the fuzzy decision (UC-031).
+
+- Rows: REAL arrivals of the question's arriving line (else product) at the hub, in its time
+  band and weekday group. Cancelled arrivals and arrivals without a measured delay are not
+  counted.
+- Hub stops are matched by **identifier**, exactly as for connections (UC-014, data.md §6):
+  `stop_id` normalised with the shared stop key (9-digit BPUIC → first 7 digits, child SLOID
+  → stop SLOID) against `connections.hub_stop_ids[hub]`, the atlas-resolved ids that the
+  caller passes to both the crisp and the fuzzy view, so SRQ2 compares the same arrivals.
+  Display names (`stop_name`) are used only as an explicit fallback when no id mapping is
+  configured, and the answer then says so.
+- p_late = share of those arrivals with delay ≥ 3 min (SBB punctuality rule, D-007;
+  `crisp_baseline.punctual_threshold_minutes`).
+- Decision (`crisp_baseline.decision_thresholds`): safe if p_late < 0.075, at_risk if
+  0.075 ≤ p_late < 0.25, risky if p_late ≥ 0.25. These are the crossover points (μ = 0.5)
+  of the fuzzy decision words suggested for UC-031 (safe falls 0.05 → 0.10, at_risk rises
+  0.05 → 0.10 and falls 0.20 → 0.30, risky rises 0.20 → 0.30); if UC-031 changes those
+  words, these thresholds follow.
+- Sentences: "Most … are punctual" if the punctual share is more than half, else "At most half
+  of … are punctual" (crisp "most" = more than half, D-012), plus "k of n arrivals were 3 or
+  more minutes late".
 
 ## 6. Claim checkers (UC-042)
 
