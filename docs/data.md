@@ -103,3 +103,60 @@ The smoke test compares the first local daily CSV header to the UC-004 fixture, 
 the field-by-field diff, and verifies the written row count against a separate CSV
 record count. **TODO(verify)** Record the observed header diff and detected separator
 and encoding here during real-data Batch A.
+
+## 6. Hub connections (UC-014)
+
+The builder resolves configured hubs against the Swiss atlas service-point export using
+the official designation. It matches STOP_EVENTS by stop-level SLOID or DiDok number,
+including child SLOIDs. The builder matches nine-digit BPUICs by their first seven
+digits. **TODO(verify)** Confirm this mapping against the published identifier
+definition. The STOP_EVENTS display name does not affect matching. The log records the identifiers resolved from the input export.
+[Atlas service-point field definitions](https://opentransportdata.swiss/en/cookbook/masterdata-cookbook/servicepoints/).
+
+| Hub | DiDok number | Stop SLOID |
+|---|---|---|
+| Zürich HB | `8503000` | `ch:1:sloid:3000` |
+| Bern | `8507000` | `ch:1:sloid:7000` |
+| Olten | `8500218` | `ch:1:sloid:218` |
+
+[Zürich HB identifiers](https://opentransportdata.swiss/en/cookbook/timetable-cookbook/gtfs/),
+[Bern identifiers](https://data.sbb.ch/explore/dataset/linie-mit-betriebspunkten/table/),
+[Olten identifiers](https://data.sbb.ch/explore/dataset/ist-daten-sbb/api/?flg=de-ch).
+
+DuckDB filters to in-scope hub stops and range-joins planned arrivals to departures
+2–15 minutes later, inclusive, from different journeys. Operating day, weekday and study
+half come from A. The time band comes from A's planned local arrival. An uncancelled
+arrival and departure require a REAL status and timestamp. A cancelled departure can
+pair with a REAL arrival and has null actual gap and departure delay. Pairs with a
+cancelled feeder A are excluded. SRQ2 therefore omits transfers missed because the
+feeder was cancelled.
+
+Following the proposed D-025 extension of D-024, otherwise eligible pairs are retained
+as unknown when A's planned or actual arrival or B's planned or actual departure is in
+`[2026-10-25 00:00, 2026-10-25 02:00) UTC`, covering both folds of the repeated
+local hour. Their actual gap and both delays are null and `b_cancelled` is false.
+Gaps and delays use elapsed minutes. A negative actual gap means B left before A arrived. To compute
+slack, subtract the assumed transfer time from the actual gap (D-009). The source
+provides neither passenger transfer choices nor platform-specific walking times.
+
+`data/processed/connections_log.json` reports counts by hub and A's operating day,
+omitting dates with zero candidates. Each candidate is counted once, in order, as
+`a_cancelled`, `a_not_real`, `b_not_real`, `dst_excluded`, or `retained`.
+`dst_excluded` counts the same unknown pairs as `ambiguous_dst_pairs` and refers to
+exclusion from REAL measurements. `pairs` counts all output rows, including the DST
+pairs. The hub-level REAL share divides the number of uncancelled pairs with usable
+REAL timestamps on both sides by the number of planned candidates. The three-day synthetic fixture has 25 retained pairs
+at Zürich HB (8–9 per day) and four at Olten (one to two per day). Bern has no fixture pairs.
+
+### 28-day VM check
+
+With the local atlas export and all 28 ingested STOP_EVENTS files in place, run:
+
+```sh
+time make data-connections
+python3 -m json.tool data/processed/connections_log.json
+```
+
+**TODO(verify, UC-014)** Record the wall time against the 15-minute target and the observed
+candidate and retained counts per hub per day. The ticket expects thousands of pairs
+per hub per day. Confirm that the logged identifiers match the table above.
