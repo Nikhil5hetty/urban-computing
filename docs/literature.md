@@ -12,12 +12,12 @@
 
 | Key | Reference | Use | Status |
 |---|---|---|---|
-| pincay2021 | Pincay, J., Portmann, E., Terán, L. (2021). Mining Linguistic Summaries in Traffic. IJCCI 2021, Vol. 1: FCTA, SciTePress, 169–176. DOI 10.5220/0010650100003063 (CC BY-NC-ND 4.0) | baseline method; validity Eq. (2) p. 170; β = 0.6; future work = quality measures, regions (§5) | verified |
+| pincay2021 | Pincay, J., Portmann, E., Terán, L. (2021). Mining Linguistic Summaries in Traffic. IJCCI 2021, Vol. 1: FCTA, SciTePress, 169–176. DOI 10.5220/0010650100003063 (CC BY-NC-ND 4.0) | baseline method; validity Eq. (2) p. 170; β = 0.6 and quantifier curves (Fig. 2) p. 172; future work = quality measures, regions (§5, p. 175) | verified (full text, incl. Fig. 2) |
 | pincay2022 | Pincay Nieves, J. (2022). Fuzzifying Geospatial Traffic Data to Convey Information. In *Smart Urban Logistics: Improving Delivery Services by Computational Intelligence*, Fuzzy Management Methods, Springer, 59–87. DOI 10.1007/978-3-031-16704-1_4 | check whether it already adds regions/quality (see below) | verified (metadata); body paywalled, TODO(verify) |
 | pincay2026 | Pincay, J., Mancera, J., Walther, J., Terán, L. (2026). From Structured Data to Semantic Insight: A Hybrid ML Framework for Swiss Traffic Safety Analysis. ICEDEG 2026, 419–425 | related Swiss traffic + local LLM work | verified (abstract); DOI not found (not in OpenAlex on 27 Nov 2026) |
-| hudec2018 | Hudec, M., Bednárová, E., Holzinger, A. (2018). Augmenting statistical data dissemination by short quantified sentences of natural language. J. Official Statistics 34(4), 981–1010. DOI 10.2478/jos-2018-0048 (open access, CC BY-NC-ND 3.0) | LS for official statistics; quality criterion against outliers / low coverage | verified (metadata + abstract); body not reachable from the agent session, TODO(verify) for any formula. Not cited in methods.md for formulas. |
-| hudec2017 | Hudec, M. (2017). Merging Validity and Coverage for Measuring Quality of Data Summaries. In *Information Technology and Computational Physics*, Advances in Intelligent Systems and Computing, Springer, 71–85. DOI 10.1007/978-3-319-44260-0_5 | t-norm merge of validity and coverage (as cited by hudec2022 p. 333) | verified (metadata); body paywalled. The "Qc = 0 if C < 0.5" rule is TODO(verify) (D-027) |
-| hudec2022 | Hudec, M., Malovcová, K., Trumic, R., Rakovská, E. (2022). A New Quality Measure and Visualization of the Short-Quantified Sentences of Natural Language on Maps. Informatica 33(2), 321–342. DOI 10.15388/22-INFOR492 (open access) | validity Eqs. (5)–(6); coverage Eqs. (18)–(19); regional ordinal-sum measure Eqs. (7)–(16) | verified (full text) |
+| hudec2018 | Hudec, M., Bednárová, E., Holzinger, A. (2018). Augmenting statistical data dissemination by short quantified sentences of natural language. J. Official Statistics 34(4), 981–1010. DOI 10.2478/jos-2018-0048 (open access, CC BY-NC-ND 3.0) | validity Eqs. (5)–(8) p. 986; **Qc = t(v, C) if C ≥ 0.5, else 0**, Eq. (9) p. 987; coverage Eqs. (A.3)–(A.4) with suggested r1 = 0.02, r2 = 0.15, p. 1002 | verified (full text, PDF supplied by Nikhil) |
+| hudec2017 | Hudec, M. (2017). Merging Validity and Coverage for Measuring Quality of Data Summaries. In *Information Technology and Computational Physics*, Advances in Intelligent Systems and Computing, Springer, 71–85. DOI 10.1007/978-3-319-44260-0_5 | origin of the validity-coverage merge; cited only as attributed by hudec2018 Eq. (9) and hudec2022 p. 333 | verified (metadata); body paywalled, optional to read |
+| hudec2022 | Hudec, M., Malovcová, K., Trumic, R., Rakovská, E. (2022). A New Quality Measure and Visualization of the Short-Quantified Sentences of Natural Language on Maps. Informatica 33(2), 321–342. DOI 10.15388/22-INFOR492 (open access) | validity Eqs. (5)–(6) p. 325; regional ordinal-sum measure Eqs. (7)–(16) pp. 327–331; coverage Eqs. (18)–(19) p. 332 | verified (full text, typeset PDF) |
 | wu2010 | Wu, D., Mendel, J. M., Joo, J. (2010). Linguistic summarization using IF-THEN rules. FUZZ-IEEE 2010, 1–8. DOI 10.1109/FUZZY.2010.5584500 | origin of the coverage function f (as attributed by hudec2022) | verified (metadata + abstract) |
 | kacprzyk2009 | Kacprzyk, J., Zadrożny, S. (2009). Protoforms of Linguistic Database Summaries as a Human Consistent Tool for Using Natural Language in Data Mining. Int. J. Software Science and Computational Intelligence 1(1), 100–111. DOI 10.4018/jssci.2009010107 | validity formula, as attributed by pincay2021 Eq. (2) | verified (metadata); body paywalled |
 | yager1982 | Yager, R. R. (1982). A new approach to the summarization of data. Information Sciences 28(1), 69–86. DOI 10.1016/0020-0255(82)90033-0 | origin of LS; validity as attributed by hudec2022 Eqs. (5)–(6) | verified (metadata); body paywalled |
@@ -30,6 +30,12 @@
 | spycher2026 | Spycher, J., Portmann, E. (2026). The Limits of Crispness: A Systematic Evaluation and New Perspective for Open Government Data (OGD) Taxonomies. In *Computational Intelligence* (IJCCI 2025), CCIS, Springer, 557–567. DOI 10.1007/978-3-032-15632-7_31 | crisp vs fuzzy framing (Human-IST) | verified (metadata) |
 | colombo2024 | Colombo, M. (2024). Phenotropic Interaction: Improving Interfaces with Computing with Words and Perceptions. Fuzzy Management Methods, Springer, Cham. ISBN 978-3-031-42818-0 | CWW in citizen interfaces (Human-IST) | verified (metadata + publisher summary) |
 | apertus2025 | Hernández-Cano, A., et al. (Swiss AI Initiative) (2025). Apertus: Democratizing Open and Compliant LLMs for Global Language Environments. arXiv 2509.14233 (also ACL 2026, long paper) | model used (Apertus-8B) | verified (metadata + abstract) |
+
+## Discrepancy in pincay2021's reference list (UC-002)
+
+pincay2021 (reference list, p. 176) cites the JOS paper as "Hudec, M., Bednárová, E., and
+Holzinger, A. (2020a) … JOS, 36(4)". The DOI 10.2478/jos-2018-0048 and the PDF give
+**34(4), 2018, pp. 981–1010**. We cite the DOI version (hudec2018).
 
 ## Does Pincay (2022) already study regions or quality measures? (UC-002)
 
@@ -47,7 +53,7 @@ evidence.**
   view, but of traffic criticality, not of summary quality.
 - pincay2021 itself names both "combine validity with existing quality measures (Hudec et
   al.)" and "check validity by region, to see whether the data distribution skews the
-  summaries" as **future work** (§5). So, as of 2021, neither was done in that
+  summaries" as **future work** (§5, p. 175). So, as of 2021, neither was done in that
   line of work.
 
 **Consequence for SRQ1:** the framing holds unless the chapter computes Hudec's coverage or

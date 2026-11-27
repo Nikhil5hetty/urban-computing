@@ -39,12 +39,25 @@ minutes; < 0 means the transfer was not possible). Also a Ruspini partition (sum
 
 **Quantifiers** (proportions in [0, 1]). The core words few / about half / most (and
 β = 0.6 in `config/study.yaml`) follow Pincay et al. 2021 (D-008); the breakpoints are ours
-because that paper shows the curves only graphically (D-008). UC-002 confirmed that
-pincay2021 gives no numeric breakpoints: the quantifiers are named in §3 and plotted in
-Figure 2 only. TODO(verify, Nikhil): compare our breakpoints visually with Figure 2 of
-pincay2021; a text extract cannot read the figure. For comparison, the published "most" of
-hudec2022 (Eq. (4), p. 325) is [0.5, 0.8, +∞, +∞]. Ours is [0.5, 0.85, +∞, +∞]: the same
-foot, with full membership reached 0.05 later.
+because that paper shows the curves only graphically (D-008).
+
+UC-002 read pincay2021 Figure 2 (p. 172, top panel "Quantifier Q") from the rendered PDF.
+The paper gives no numbers, so the readings below are approximate (± 0.01). Its three
+quantifiers form a uniform family with the grid 0.2 / 0.4 / 0.6 / 0.8 and crossovers at
+0.3 and 0.7:
+
+| Word | pincay2021 Fig. 2 (read off) | ours (`config/vocabulary.yaml`) |
+|---|---|---|
+| few | [−∞, −∞, 0.2, 0.4] | [−∞, −∞, 0.1, 0.35] |
+| about_half | [0.2, 0.4, 0.6, 0.8] | [0.3, 0.45, 0.55, 0.7] |
+| most ("most of") | [0.6, 0.8, +∞, +∞] | [0.5, 0.85, +∞, +∞] |
+
+So our breakpoints do **not** match the baseline paper. Ours are narrower and sit closer to
+½. Whether to switch is proposed decision D-028; the config is unchanged until the PM
+decides (AGENTS §4.3).
+
+For comparison, Hudec's "most of" is [0.5, 0.8, +∞, +∞]: hudec2018 Eq. (4), p. 985, and
+hudec2022 Eq. (4), p. 325.
 
 | Set | Word | [a, b, c, d] |
 |---|---|---|
@@ -87,23 +100,28 @@ S, optional restriction R (both membership functions from §1), relative quantif
   v = μ_Q((1/n) Σ_i μ_S(x_i)).
   - Source: pincay2021, Eq. (2), §2.1, p. 170, which attributes it to Kacprzyk & Zadrożny
     (2009, IJSSCI 1(1)).
-  - hudec2022 gives the same formula as Eq. (5), §2.1, p. 325, there citing Yager (1982).
-  - We did not read either primary source (paywalled; literature.md).
+  - The same formula appears in hudec2018, Eqs. (5)–(6), p. 986, and in hudec2022,
+    Eq. (5), p. 325; both cite Yager (1982).
+  - The primary sources Kacprzyk & Zadrożny 2009 and Yager 1982 were not read
+    (paywalled; literature.md).
 - Protoform 2 "Q R x are S": v = μ_Q(p), with p as above with R (`truth_restricted`), i.e.
   v = μ_Q(Σ_i t(μ_R(x_i), μ_S(x_i)) / Σ_i μ_R(x_i)).
-  - Source: hudec2022, Eq. (6), §2.1, p. 325, citing Yager (1982) and Rasmussen & Yager
-    (1997).
-  - t-norm: the paper writes the conjunction as ∧ and says any t-norm can be used, with the
-    minimum as a possible choice. So our default `product` is allowed by the source, and
-    `min` (our ablation) is the paper's suggestion.
-  - The paper sets 0/0 = 0. We return NaN instead (edge cases below), so that "not
-    computable" stays distinguishable from "false".
-  - Reading of Eq. (6): we apply the conjunction per record, inside the sum. The text
-    extract seems to put ∧ between the two sums. Read that way, the numerator would be
-    min(Σ μ_S, Σ μ_R), which ignores which records satisfy R, so we take the per-record
-    form. TODO(verify, Nikhil): check against the typeset PDF.
+  - Source: hudec2018, Eqs. (7)–(8), §2.3, p. 986, and hudec2022, Eq. (6), p. 325; both
+    cite Yager (1982) and Rasmussen & Yager (1997).
+  - **The conjunction is applied per record, inside the sum.**
+    - hudec2018 Eq. (7) typesets Σ_i (μ_S(x_i) ∧ μ_R(x_i)) / Σ_i μ_R(x_i); checked on the
+      rendered page.
+    - hudec2022 Eq. (6), by the same first author, typesets Σ μ_P(x_i) ∧ Σ μ_R(x_i) in the
+      numerator. We treat that as a typesetting slip: read literally, it ignores which
+      records satisfy R.
+  - **t-norm.**
+    - hudec2018 says the "and operator" is a t-norm (Appendix A); hudec2022 says any t-norm
+      can be used and suggests the minimum.
+    - Our default `product` and our ablation `min` are both allowed by the sources.
+  - **0/0.** Both papers set 0/0 = 0 when no record meets R. We return NaN instead (edge
+    cases below), so that "not computable" stays distinguishable from "false".
   - pincay2021 has no restricted protoform in use: it states that restrictions "did not add
-    value" (§3.2).
+    value" (§3.2, p. 172).
 
 **Edge cases (our conventions, not from the sources).**
 
@@ -121,35 +139,37 @@ takes about 0.02 s on a laptop.
 
 ## 3. Quality measures (UC-022)
 
-Primary source for every formula in this section: Hudec, Malovcová, Trumic & Rakovská 2022
-(hudec2022), Informatica 33(2), open access. We read it in full text (UC-002).
-- Page numbers are journal pages taken from the PDF.
-- We also checked the worked examples below numerically (UC-002 PR).
-- hudec2017 and hudec2018 could not be read here (paywalled, and the PDF could not be
-  fetched); where a rule depends only on them, it is marked TODO(verify).
+Sources, both read in full from the publishers' PDFs (UC-002):
+- hudec2018: Hudec, Bednárová & Holzinger, J. Official Statistics 34(4), 2018.
+- hudec2022: Hudec, Malovcová, Trumic & Rakovská, Informatica 33(2), 2022.
+
+Page numbers are journal pages. We checked the worked examples below numerically (UC-002
+PR). hudec2017, the chapter that introduced the validity-coverage merge, is paywalled. We
+cite it only through hudec2018, which states the rule as an equation.
 
 ### 3.1 Coverage (summaries with restriction)
 
 Why: a restricted summary can have high validity but rest on a handful of records (outliers).
 hudec2022, §3.2, pp. 332–333.
 
-- **Ratio of included records** (Eq. (18), p. 332):
+- **Ratio of included records** (hudec2022 Eq. (18), p. 332 = hudec2018 Eq. (A.3), p. 1002):
   i_C = (1/n) Σ_{i=1}^{n} m_i, where m_i = 1 if μ_S(x_i) > 0 and μ_R(x_i) > 0, else 0.
   - n is the number of all records (not only those in R).
   - The paper writes the summarizer as P.
   - m_i is a crisp support count: any membership above 0 counts.
-- **Degree of sufficient coverage** (Eq. (19), p. 332; the paper attributes it to Wu,
-  Mendel & Joo 2010, wu2010):
+- **Degree of sufficient coverage** (hudec2022 Eq. (19), p. 332, identical to hudec2018
+  Eq. (A.4), p. 1002; both attribute it to Wu, Mendel & Joo 2010, wu2010):
 
   C = f(i_C) =
   - 0 if i_C ≤ r1;
   - 2 (i_C − r1)² / (r2 − r1)² if r1 < i_C < (r1 + r2)/2;
   - 1 − 2 (r2 − i_C)² / (r2 − r1)² if (r1 + r2)/2 ≤ i_C < r2;
   - 1 if i_C ≥ r2.
-- **Parameters r1, r2.** The paper says they depend on the length of the summary (the number
-  of attributes in R and S) and gives no general rule.
-  - Its worked example uses **r1 = 0.02, r2 = 0.15** on 2000 records, where 15 % of the data
-    in the R and S parts counts as fully sufficient coverage (p. 332).
+- **Parameters r1, r2.**
+  - hudec2018 (p. 1002) gives **r1 = 0.02 and r2 = 0.15** as "the suggested values".
+  - hudec2022 (p. 332) adds that suitable values depend on the length of the summary (the
+    number of attributes in R and S). It uses the same values in its worked example (2000
+    records; 15 % of the data in the R and S parts counts as fully sufficient coverage).
   - These values are not yet in `config/study.yaml`; see the proposed decision D-027.
 - **Worked example** (p. 332, Table 2; UC-022 test vectors). n = 2000, r1 = 0.02, r2 = 0.15:
 
@@ -163,45 +183,59 @@ hudec2022, §3.2, pp. 332–333.
 
 ### 3.2 Quality Qc = validity combined with coverage
 
-- **Rule.** Truth value and coverage must both be satisfied, so they are aggregated by a
-  t-norm: hudec2022 p. 333, citing hudec2017. The paper gives the rule in text only, with no
-  equation number and no symbol "Qc".
-- **Our implementation.** We write Qc = t(v, C) with the mining t-norm
-  (`config/study.yaml` `mining.tnorm`).
-  - With t = product or min, Qc ≤ v, and Qc = 0 whenever C = 0, i.e. i_C ≤ r1.
-- **Coverage threshold.** `mining.coverage_threshold: 0.5`, used as "Qc = 0 if C < 0.5"
-  (UC-022 `c_min`), is **not** in hudec2022. Its only possible source is hudec2017 or
-  hudec2018, which we could not read.
-  - TODO(verify, Nikhil): find this rule (with page) in hudec2017 or hudec2018.
-  - If it is absent, it is our design choice and must be labelled so. Proposed decision
-    D-027.
+- **Rule** (hudec2018 Eq. (9), §2.3, p. 987, attributed there to hudec2017):
+
+  Qc = t(v, C) if C ≥ 0.5; Qc = 0 otherwise.
+
+  - v is the validity of the restricted summary (hudec2018 Eq. (8)) and C the degree of
+    sufficient coverage (§3.1).
+  - t is a **nonidempotent** t-norm, "for example, a product t-norm".
+  - hudec2022 (p. 333) repeats the aggregation by a t-norm, citing hudec2017, without the
+    threshold.
+- **Config already matches the source.** `mining.coverage_threshold: 0.5` (UC-022
+  `c_min = 0.5`) and `mining.tnorm: product` match hudec2018 Eq. (9); no config change is
+  needed.
+- **Caveat for the min ablation.** min is idempotent, so the `min` ablation of
+  `mining.tnorm` is **not** a valid choice for Qc under hudec2018. UC-022 should compute Qc
+  with the product t-norm even when the truth ablation uses min (D-027 (2)).
+- **Properties for tests.** With the product, Qc ≤ v; Qc = 0 whenever C < 0.5, in
+  particular when i_C ≤ r1 (C = 0).
+- **Worked examples in hudec2018** (§3.5, p. 997):
+  - a summary with v = 0.814 has Qc = 0.8082. With the product this implies C ≈ 0.993; C
+    itself is not printed, so this is not an exact test vector.
+  - a summary with v = 1 but C = 0 has Qc = 0: "not representative".
+- **Mining with Qc.** hudec2018 Eq. (12), §3.1, p. 991, proposes replacing the validity threshold
+  of the mining task with Qc(Q, S, R) ≥ u_k, with u_k in (0, 1] (relevant for UC-023 /
+  H1c).
 - **Discrepancy.** The JOS paper hudec2018 is cited by pincay2021 as "Hudec et al. 2020a,
   JOS 36(4)". The DOI 10.2478/jos-2018-0048 resolves to JOS **34(4), 2018**, pp. 981–1010.
   We cite the DOI version.
 
 ### 3.3 Regional quality (summaries per region on a map)
 
-hudec2022, §3.1 (Eqs. (7)–(16), pp. 327–331). The same summary is evaluated in every region (district) i.
-The measure relates the region's truth v_i to the region's size.
+hudec2022, §3.1 (Eqs. (7)–(16), pp. 327–331). The same summary is evaluated in every
+region (district) i. The measure relates the region's truth v_i to the region's size.
 
 - **Region proportion** (Eq. (8), p. 327): p_i = N_i / max{N_1, …, N_k}.
   - N_i is the number of records (in the paper: patients) in region i.
   - The maximum is taken over all regions.
 - **Rejected simple weighting** (Eq. (7), p. 327): v̄_i = p_i · v_i. The paper shows that it
   suppresses small regions too much and does not adopt it.
-- **Adopted measure: ordinal sum** (Eqs. (12)–(16); (13)–(15) on p. 330, (16) on p. 331), with x = v_i, y = p_i,
+- **Adopted measure: ordinal sum** (Eqs. (12)–(15) on p. 330, Eq. (16) on p. 331), with x = v_i, y = p_i,
   split point a = 0.5, and A(x, y) = A1(a ∧ x, a ∧ y) + A2(a ∨ x, a ∨ y) − a (Eq. (13)):
   - A1(x, y) = 2xy on [0, 0.5]², a rescaled product, which behaves conjunctively (Eq. (14));
   - A2(x, y) = −1 + 2x + 2y − 2xy on [0.5, 1]², a rescaled probabilistic sum, which behaves
     disjunctively (Eq. (15));
   - in the mixed regions, the formula reduces to the arithmetic mean form
     AM(x, y) = x + y − 1/2 (Eq. (16)).
-- **Rule for v_i = 0.** If v_i = 0, the result is 0 regardless of p_i (§3.1). The text says
-  quality measures are only activated when the truth value is greater than 0.
+- **Rule for v_i = 0.** If v_i = 0, the result is 0 regardless of p_i.
+  - It is stated for the uninorm on p. 329 and again for the ordinal sum on p. 331: quality
+    measures are only activated when the truth value is greater than 0.
   - Eq. (16) alone would give 0.084 for D3 below, so the rule must be applied explicitly.
 - **Restricted summaries.** The maps in the paper (Figs. 9, 11) show the restricted summary
   per district. This implies Eq. (6) per region; the text does not state it explicitly.
-- **Worked example** (Table 1, three districts; N = 21, 770, 450):
+- **Worked example** (Table 1 on p. 327 gives cardinalities and truth values; the results
+  are on p. 331; three districts with N = 21, 770, 450):
 
   | District | v_i | p_i | A(v_i, p_i) printed | A recomputed (UC-002) |
   |---|---|---|---|---|
@@ -209,11 +243,14 @@ The measure relates the region's truth v_i to the region's size.
   | D2 | 0.7013 | 1 | 1 | 1 |
   | D3 | 0 | 0.5844 | 0 | 0 (v_i = 0 rule) |
 
-  The paper also gives A(1, 0.001) = 0.501. Caveat: D2's printed v = 0.7013 does not
-  follow from Eq. (4), which gives about 0.671 at that proportion. Use the (v, p) pairs as
-  given; do not use them to test μ_most.
-- **Uninorm alternative.** The paper also discusses a uninorm U_1 (Eqs. (9)–(10)).
-  It gives 0.0649 for D1 and was not adopted; listed here only for completeness.
+  The paper also gives A(1, 0.001) = 0.501 (p. 331).
+  - Caveat: D2's printed v = 0.7013 equals its proportion 540/770, not μ_most of it; Eq. (4)
+    gives about 0.671.
+  - D1's v = 0.7143 happens to coincide with its proportion 15/21.
+  - Use the (v, p) pairs as given; do not use them to test μ_most.
+- **Uninorm alternative.** The paper also discusses a uninorm U_1 (Eq. (9), p. 328;
+  Eq. (10), p. 329). It gives 0.0649 for D1 and is unstable near (0, 1), so it was not
+  adopted; listed here only for completeness.
 - **Interface note.** The measure yields one value per region. The frozen stub
   `regional_quality(per_region_truth, weights) -> float` returns one float; see D-027.
 
