@@ -43,6 +43,9 @@ connections:
 crisp_baseline:
   punctual_threshold_minutes: 3     # SBB definition: < 3 min late is punctual (D-007)
   most_threshold: 0.5               # Stat-to-Text style crisp "most" = more than half (D-012)
+  decision_thresholds:              # crisp decision on p_late (UC-032, D-026): the crossovers
+    at_risk: 0.075                  # of the fuzzy decision words safe / at_risk / risky (UC-031)
+    risky: 0.25
 
 mining:
   beta: 0.6                         # validity threshold from Pincay et al. 2021
