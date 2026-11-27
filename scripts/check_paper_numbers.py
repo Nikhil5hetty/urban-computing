@@ -69,9 +69,8 @@ def main(argv: list[str] | None = None) -> int:
     violations = check(args.paper_dir)
     for v in violations:
         print(f"I6 violation: {v}", file=sys.stderr)
-    print(
-        f"I6 {'pass' if not violations else 'FAIL'}: {len(violations)} hard-coded number(s) (decimals or percentages)"
-    )
+    status = "pass" if not violations else "FAIL"
+    print(f"I6 {status}: {len(violations)} hard-coded number(s) (decimals or percentages)")
     return 1 if violations else 0
 
 
