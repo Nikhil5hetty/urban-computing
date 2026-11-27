@@ -3,7 +3,7 @@ id: UC-060
 title: Prototype app (Streamlit) for citizens
 epic: prototype
 milestone: M3
-status: todo
+status: in-progress
 owner: agent
 estimate_h: 4
 depends_on: []        # hard: needs merged code
