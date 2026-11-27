@@ -3,7 +3,7 @@ id: UC-024
 title: Pincay et al. (2021) configuration as methodological baseline
 epic: fuzzy
 milestone: M1
-status: todo
+status: in-progress
 owner: agent
 estimate_h: 1
 depends_on: [UC-023]        # hard: needs merged code
