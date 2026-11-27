@@ -3,7 +3,7 @@ id: UC-040
 title: LLM runner on UBELIX (Apertus-8B, stats-only and fuzzy-grounded)
 epic: llm
 milestone: M2
-status: todo
+status: in-progress
 owner: agent
 estimate_h: 4
 depends_on: []        # hard: needs merged code
