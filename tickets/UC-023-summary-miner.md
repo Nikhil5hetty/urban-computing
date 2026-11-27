@@ -33,6 +33,8 @@ records with truth, coverage and Qc.
 - [ ] Runtime for all segments of 28 days < 20 min on the VM
 - [ ] `make mine` works
 - [ ] `SummaryRecord.n` counts complete (non-NaN) rows; the miner output reports dropped rows per segment (e.g. cancelled arrivals) (PM review of #39)
+- [ ] Qc per summary via `quality.coverage` / `quality_qc` (UC-022): unrestricted summaries have C = 1, so Qc = v (hudec2018 p. 987); restricted summaries use i_C over all records. Restricted `few` summaries can get low coverage by design (few records in R ∩ S) — report how many valid summaries Qc drops, by quantifier (PM review of #54)
+- [ ] Pass `mining.qc_tnorm` (product) to `quality_qc`, never `mining.tnorm` (D-027; `quality_qc` raises for min) (PM review of #54)
 
 ## Tests
 `tests/test_miner.py`: fixture with known proportions → expected valid set at β = 0.6;
