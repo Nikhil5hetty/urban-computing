@@ -52,7 +52,7 @@ INTERFACE = {
     "urban_computing.fuzzy.quality": {
         "coverage": ["mu_R", "mu_S", "params"],
         "quality_qc": ["truth", "cov", "tnorm", "c_min"],
-        "regional_quality": ["per_region_truth", "weights"],
+        "regional_quality": ["per_region_truth", "region_sizes"],  # D-027 (UC-022)
     },
     "urban_computing.fuzzy.miner": {
         "mine": [

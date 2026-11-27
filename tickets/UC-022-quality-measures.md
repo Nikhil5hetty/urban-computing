@@ -3,7 +3,7 @@ id: UC-022
 title: Hudec coverage, quality Qc and regional quality
 epic: fuzzy
 milestone: M1
-status: todo
+status: done
 owner: agent
 estimate_h: 3
 depends_on: [UC-002]        # hard: needs merged code
