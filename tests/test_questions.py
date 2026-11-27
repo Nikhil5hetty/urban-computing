@@ -9,9 +9,12 @@ import yaml
 
 from scripts import make_questions as cli
 from tests import factories
+from urban_computing.assistant import crisp
 from urban_computing.assistant.contract import Question
 from urban_computing.assistant.crisp import crisp_answer
-from urban_computing.assistant.engine import _p_miss
+from urban_computing.assistant.engine import _p_miss, decide, decision_sets
+from urban_computing.data.arrivals import _stop_key
+from urban_computing.evaluation import questions as question_sampling
 from urban_computing.evaluation.questions import _question_set, make_questions, write_questions
 from urban_computing.fuzzy.vocabulary import load_vocabulary
 
@@ -107,6 +110,17 @@ def test_rejects_missing_borderline_quota(tables, study):
 @pytest.mark.parametrize("mixed_ids", [False, True])
 def test_cli_writes_question_set_and_manifest(tables, study, tmp_path, monkeypatch, mixed_ids):
     pairs, arrivals = tables
+    pairs = pd.concat(
+        [
+            pairs,
+            factories.connections(
+                [20.0] * 19 + [None], arr_line="short", arr_product="short", b_cancelled=False
+            ),
+            factories.connections([20.0], arr_line="", arr_product="no_line"),
+            factories.connections([20.0], hub="outside"),
+        ],
+        ignore_index=True,
+    )
     if mixed_ids:
         # UC-014 can resolve these feeders by SLOID while ARRIVALS keeps the
         # alternate BPUIC. Losing a feeder from the official cohort must not
@@ -137,6 +151,21 @@ def test_cli_writes_question_set_and_manifest(tables, study, tmp_path, monkeypat
     assert manifest["seed"] == study["study"]["seed"]
     assert manifest["n_questions"] == len(questions) >= 120
     assert manifest["n_borderline"] == len(questions)
+    assert manifest["connection_counts"] == {
+        "input": len(pairs),
+        "measured": len(pairs) - 28,
+        "retained": len(pairs) - 29,
+    }
+    assert manifest["candidate_segments"] == {
+        "input": 123,
+        "eligible": 108,
+        "excluded": {
+            # Each arrival selector is considered for Mondays, weekdays, and all days.
+            "missing_route": 3,
+            "insufficient_connections": 9,
+            "no_official_cohort": 3,
+        },
+    }
     assert {q.question_id for q in questions} == set(manifest["segments"])
     assert {segment["n"] for segment in manifest["segments"].values()} <= {20, 60, 80}
     assert all(q.arr_line != "wrong" for q in questions)
@@ -163,6 +192,31 @@ def test_cli_writes_question_set_and_manifest(tables, study, tmp_path, monkeypat
     before = output.read_bytes(), manifest_path.read_bytes()
     cli.main()
     assert before == (output.read_bytes(), manifest_path.read_bytes())
+
+
+def test_normalizes_network_arrivals_once(tables, study, monkeypatch):
+    pairs, arrivals = tables
+    study["connections"]["hub_stop_ids"] = {
+        hub: [f"850000{i}"] for i, hub in enumerate(study["connections"]["hubs"], 1)
+    }
+    seed = study["study"]["seed"]
+    expected = _question_set(pairs, study, seed, arrivals=arrivals)
+    outside_hubs = arrivals.loc[arrivals["stop_id"].eq("9999999")]
+    network_arrivals = pd.concat(
+        [arrivals, outside_hubs.loc[outside_hubs.index.repeat(5_000)]], ignore_index=True
+    )
+    network_scans = 0
+
+    def record_stop_keys(ids):
+        nonlocal network_scans
+        if len(ids) == len(network_arrivals):
+            network_scans += 1
+        return _stop_key(ids)
+
+    monkeypatch.setattr(crisp, "_stop_key", record_stop_keys)
+    monkeypatch.setattr(question_sampling, "_stop_key", record_stop_keys)
+    assert _question_set(pairs, study, seed, arrivals=network_arrivals) == expected
+    assert network_scans == 1
 
 
 @pytest.mark.parametrize(
@@ -247,8 +301,14 @@ def test_mixed_identifiers_from_real_builders(study):
     assert arrivals["stop_id"].eq("9999998").any()
     questions, manifest = _question_set(pairs, study, study["study"]["seed"], arrivals=arrivals)
     assert len(questions) >= 120
+    vocab = load_vocabulary()
+    sets = decision_sets(study)
     for question in questions:
-        crisp_answer(question, arrivals, study)
-        _, n, fallback, _, _ = _p_miss(question, pairs, arrivals, load_vocabulary(), study)
+        crisp = crisp_answer(question, arrivals, study)
+        assert crisp.decision == ("at_risk" if question.weekday_group == "weekend" else "safe")
+        p_miss, n, fallback, _, _ = _p_miss(question, pairs, arrivals, vocab, study)
+        assert decide(p_miss, sets) == "at_risk"
         assert not fallback
-        assert n == manifest["segments"][question.question_id]["n"]
+        days = {"weekday": 20, "all": 28, "weekend": 8}[question.weekday_group]
+        assert n == days * (3 if question.arr_product else 1)
+        assert manifest["segments"][question.question_id]["n"] == n

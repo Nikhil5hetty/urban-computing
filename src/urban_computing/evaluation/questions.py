@@ -10,23 +10,59 @@ import numpy as np
 import pandas as pd
 
 from urban_computing.assistant.contract import Question
-from urban_computing.assistant.crisp import _WEEKDAY_GROUPS, _segment
+from urban_computing.assistant.crisp import _WEEKDAY_GROUPS, hub_stop_keys
 from urban_computing.assistant.engine import (
     FALLBACK_MIN_CONNECTIONS,
     VOCAB_PATH,
     personal_slack,
 )
+from urban_computing.data.arrivals import _stop_key
 from urban_computing.fuzzy.truth import fuzzy_proportion
 from urban_computing.fuzzy.vocabulary import load_vocabulary
 
 _MIN_BORDERLINE = 15
 _BORDERLINE_DISTANCE = 0.05
+_ROUTE_COLUMNS = {"arr_line": "line", "arr_product": "product"}
+
+
+def _official_cohorts(arrivals: pd.DataFrame, config: dict) -> set[tuple[str, str, str, str, str]]:
+    """Index route segments with at least one arrival measured by the crisp baseline."""
+    settings = config["connections"]
+    hub_keys = {}
+    for hub in settings["hubs"]:
+        keys = hub_stop_keys(hub, config)
+        hub_keys[hub] = {hub} if keys is None else keys
+    stop_keys = (
+        _stop_key(arrivals["stop_id"]) if settings.get("hub_stop_ids") else arrivals["stop_name"]
+    )
+    study_keys = {key for keys in hub_keys.values() for key in keys}
+    keep = (
+        stop_keys.isin(study_keys)
+        & arrivals["time_band"].isin(config["time_bands"])
+        & ~arrivals["cancelled"].astype(bool)
+        & arrivals["delay_min"].notna()
+    )
+    measured = arrivals.loc[keep, ["time_band", "weekday", "line", "product"]].assign(
+        stop_key=stop_keys.loc[keep]
+    )
+    cohorts = set()
+    for hub, keys in hub_keys.items():
+        at_hub = measured.loc[measured["stop_key"].isin(keys)]
+        for group, weekdays in _WEEKDAY_GROUPS.items():
+            at_group = at_hub.loc[at_hub["weekday"].isin(weekdays)]
+            for field, column in _ROUTE_COLUMNS.items():
+                routes = at_group[["time_band", column]].dropna().drop_duplicates()
+                cohorts.update(
+                    (hub, band, group, field, route)
+                    for band, route in routes.itertuples(index=False, name=None)
+                )
+    return cohorts
 
 
 def _question_set(
     connections: pd.DataFrame, config: dict, seed: int, *, arrivals: pd.DataFrame | None = None
 ) -> tuple[list[Question], dict]:
-    """Sample eligible questions and collect the manifest for the same selection."""
+    """Sample eligible questions and report connection rows and pre-margin segments."""
     settings = config["connections"]
     bands = config["time_bands"]
     vocab = load_vocabulary(Path(config.get("paths", {}).get("vocabulary", VOCAB_PATH)))
@@ -37,34 +73,33 @@ def _question_set(
         connections["b_cancelled"].fillna(False)
         | (connections["actual_gap_min"].notna() & connections["planned_gap_min"].notna())
     ]
+    retained = measured.loc[
+        measured["hub"].isin(settings["hubs"]) & measured["time_band"].isin(bands)
+    ]
+    official = _official_cohorts(arrivals, config) if arrivals is not None else None
+    excluded = {"missing_route": 0, "insufficient_connections": 0, "no_official_cohort": 0}
+    eligible = 0
     strata = defaultdict(list)
-    for (hub, band), at_time in measured.groupby(["hub", "time_band"], sort=True):
-        if hub not in settings["hubs"] or band not in bands:
-            continue
+    for (hub, band), at_time in retained.groupby(["hub", "time_band"], sort=True, observed=True):
         for group, weekdays in _WEEKDAY_GROUPS.items():
             at_group = at_time.loc[at_time["weekday"].isin(weekdays)]
             # Product questions remain eligible when a band has enough observations
             # across lines but too few on any individual line.
-            for field in ("arr_line", "arr_product"):
-                for route, segment in at_group.groupby(field, sort=True):
-                    if not route or len(segment) < FALLBACK_MIN_CONNECTIONS:
+            for field in _ROUTE_COLUMNS:
+                for route, segment in at_group.groupby(
+                    field, sort=True, dropna=False, observed=True
+                ):
+                    if pd.isna(route) or not route:
+                        excluded["missing_route"] += 1
                         continue
-                    # Fuzzy and official views have distinct measured cohorts. The
-                    # official view uses resolved stop IDs, not pairwise feeder matches.
-                    if arrivals is not None:
-                        candidate = Question.model_validate(
-                            {
-                                "hub": hub,
-                                "time_band": band,
-                                "weekday_group": group,
-                                "margin_min": settings["user_margins_minutes"][0],
-                                field: route,
-                            },
-                            context={"study_config": config},
-                        )
-                        official, _ = _segment(candidate, arrivals, config)
-                        if official.empty:
-                            continue
+                    if len(segment) < FALLBACK_MIN_CONNECTIONS:
+                        excluded["insufficient_connections"] += 1
+                        continue
+                    # Official eligibility is independent of the fuzzy connection rows.
+                    if official is not None and (hub, band, group, field, route) not in official:
+                        excluded["no_official_cohort"] += 1
+                        continue
+                    eligible += 1
                     for margin in sorted(set(settings["user_margins_minutes"])):
                         slack = personal_slack(
                             segment, margin, settings["min_transfer_minutes_default"]
@@ -80,9 +115,7 @@ def _question_set(
 
     missing_hubs = set(settings["hubs"]) - {key[0] for key in strata}
     missing_margins = set(settings["user_margins_minutes"]) - {key[3] for key in strata}
-    eligible_bands = (
-        measured.loc[measured["hub"].isin(settings["hubs"])].groupby("time_band").size()
-    )
+    eligible_bands = retained.groupby("time_band", observed=True).size()
     missing_bands = {
         band for band in bands if eligible_bands.get(band, 0) >= FALLBACK_MIN_CONNECTIONS
     } - {key[1] for key in strata}
@@ -154,6 +187,17 @@ def _question_set(
         "seed": seed,
         "n_questions": len(questions),
         "n_borderline": sum(segment["borderline"] for segment in segments.values()),
+        "connection_counts": {
+            "input": len(connections),
+            "measured": len(measured),
+            "retained": len(retained),  # measured rows in configured hubs and bands
+        },
+        "candidate_segments": {
+            # Count each hub, band, weekday group and line or product before adding margins.
+            "input": eligible + sum(excluded.values()),
+            "eligible": eligible,
+            "excluded": excluded,  # first failed eligibility check per segment
+        },
         "strata_counts": [
             {"hub": hub, "time_band": band, "weekday_group": group, "margin_min": margin, "n": n}
             for (hub, band, group, margin), n in sorted(counts.items())
