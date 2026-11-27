@@ -40,6 +40,7 @@ CRISP_DEFAULTS: dict[str, float] = {
     "most_threshold": 0.5,  # Stat-to-Text "more than half" (D-012); config overrides
     "few_threshold": 0.25,  # our choice: Stat-to-Text has no "few"
     "about_half_tolerance": 0.1,  # our choice: |p - 0.5| <= 0.1
+    "official_late": 0.0,  # ablation (UC-054): 1 = crisp "late" is delay >= punctual threshold
 }
 # Crisp boundaries fixed by a definition instead of the fuzzy crossover (methods §6).
 _DEFINED_UPPER: dict[tuple[str, str], str | float] = {
@@ -99,6 +100,10 @@ def crisp_intervals(
                 bounds.append((float(t.c) + float(t.d)) / 2.0)
         edges = [-np.inf, *bounds, np.inf]
         out[attr] = {w: (edges[i], edges[i + 1]) for i, (w, _) in enumerate(order)}
+    late = out.get("arrival_delay_minutes", {})
+    if _crisp_param(config, "official_late") and "late" in late:
+        # Ablation (UC-054, PM review of #43): the official reading "late = not punctual".
+        late["late"] = (_crisp_param(config, "punctual_threshold_minutes"), np.inf)
     return out
 
 
