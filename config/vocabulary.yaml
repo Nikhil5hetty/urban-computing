@@ -33,5 +33,14 @@ quantifiers:
     almost_none: [null, null, 0.02, 0.1]
     almost_all:  [0.85, 0.95, null, null]
 
-# Decision words of the assistant (UC-031). Rule is documented in docs/methods.md.
+# Decision words of the assistant (UC-031). Rule is documented in docs/methods.md §5.
 decision_words: [safe, at_risk, risky]
+
+# Fuzzy decision words over p_miss, the fuzzy share of the passenger's connections that are
+# missed (UC-031, D-029). decision = argmax membership; ties -> the more cautious word.
+# Crossovers (mu = 0.5) at p_miss = 0.075 and 0.25 are the crisp baseline's thresholds
+# (config/study.yaml crisp_baseline.decision_thresholds, D-026).
+decision_sets:
+  safe:    [null, null, 0.05, 0.10]
+  at_risk: [0.05, 0.10, 0.20, 0.30]
+  risky:   [0.20, 0.30, null, null]

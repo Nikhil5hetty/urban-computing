@@ -314,7 +314,55 @@ Implementation: `urban_computing.fuzzy.miner` (pure NumPy), `evaluation/segments
   segments, 25 308 records) the whole run takes about 20 s on a laptop.
 
 ## 5. Assistant decision rule (UC-031)
-TODO (UC-031): fuzzy decision rule.
+
+Implementation: `urban_computing.assistant.engine.answer` / `verify_answer` (decision D-029).
+The decision word and the explanation come from the same truth computation, so the
+explanation is faithful by construction (invariant I4).
+
+1. **Segment.** The question's connections at the hub, from the connections table, whose
+   hub stops were matched by stop id (UC-014). The segment is restricted to:
+   - the arriving line (else product), and the departing line or product if given;
+   - the time band and weekday group.
+
+   **Fallback.** With fewer than 20 matching connections, the engine uses the arriving
+   line's arrivals at the hub instead and sets `Provenance.fallback`. Hub stops are matched
+   by stop id, as in the crisp baseline; cancelled arrivals are not counted.
+2. **Encoder (perception-aware).** The passenger plans a transfer of `margin_min` = m
+   minutes. An observed connection tells how delays shift a transfer: actual gap − planned
+   gap = departure delay − arrival delay. The passenger's personal slack is
+
+   s = m + (actual gap − planned gap) − min transfer time,
+
+   with the min transfer time `connections.min_transfer_minutes_default` (2 min, D-009).
+   - A cancelled departure (`b_cancelled`) gives s = −∞: missed (the D-023 convention).
+   - An unknown gap (NaN, e.g. the DST window, D-025) is dropped.
+   - μ = μ_missed(s) (§1).
+   - In the fallback, μ = late_for_my_transfer(arrival delay; m) (§1, D-010).
+3. **Engine.** p_miss = the fuzzy proportion of μ (§2).
+4. **Decoder.** The decision words are fuzzy sets over p_miss (`config/vocabulary.yaml`
+   `decision_sets`): safe [−∞, −∞, 0.05, 0.10], at_risk [0.05, 0.10, 0.20, 0.30], risky
+   [0.20, 0.30, +∞, +∞].
+   - decision = argmax membership; ties (equal within 1e-12) go to the more cautious word.
+   - The crossovers at 0.075 and 0.25 are therefore at_risk and risky, the same thresholds
+     as the crisp baseline below (D-026).
+   - Rationale: a passenger misses about 1 in 20 or fewer → safe; 1 in 10 to 1 in 5 → at
+     risk; more than 1 in 4 to 1 in 3 → risky. These are design choices (no external source).
+   - The words are monotone, so later arrivals never give a safer word (tested).
+5. **Explanation.** Every stated sentence has truth ≥ β (`mining.beta`).
+   - First, the core quantifier with the highest truth μ_Q(p_miss), if that truth is ≥ β:
+     "With 4 minutes to change, few of your connections at Olten are missed." It carries
+     n complete rows and coverage 1.
+   - Then up to three valid summaries (truth ≥ β, Qc > 0, not small_n) with the highest Qc,
+     mined (§4) with **the hub's arrivals as the segment**, so a line's coverage is its share
+     at that hub. The restrictions are the question's line, its time band, its weekday group
+     and their combination (PM review of #55).
+   - The crisp official view (UC-032) is attached as `crisp_decision` and `crisp_sentences`.
+
+**Invariant I4** (`evaluation/invariants.py`). `verify_answer` recomputes p_miss, the decision
+word and every explanation's truth from the data, to < 1e-9. The I4 provider answers the
+question set (eval/questions.jsonl, or one question per observed hub × line × time band ×
+margin, up to 300) on the processed tables, or on the fixture in sample mode, and passes iff
+every answer verifies.
 
 ### Crisp official-view baseline (UC-032)
 
