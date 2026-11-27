@@ -3,7 +3,7 @@ id: UC-071
 title: "Paper: introduction, related work, concept, prototype sections"
 epic: paper
 milestone: M4
-status: todo
+status: in-progress
 owner: agent
 estimate_h: 4
 depends_on: [UC-002]        # hard: needs merged code
