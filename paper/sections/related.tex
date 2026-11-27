@@ -43,8 +43,9 @@ by \citet[Eqs.~(5)--(6)]{hudec2022}, who attribute it to \citet{yager1982}.
 Validity alone does not say how much data a sentence rests on. \citet{hudec2018} use short
 quantified sentences to disseminate official statistics and combine validity with
 \emph{coverage}: a restricted summary may be fully valid and yet describe only a handful of
-records. Their quality measure $Q_c$ is the product of validity and coverage when the
-coverage reaches a threshold, and zero otherwise \citep[Eq.~(9)]{hudec2018}; they attribute
+records. Their quality measure $Q_c$ is a non-idempotent t-norm of validity and coverage
+(for example the product, which we use) when the coverage reaches a threshold, and zero
+otherwise \citep[Eq.~(9)]{hudec2018}; they attribute
 the merge of validity and coverage to \citet{hudec2017}. The degree of sufficient coverage is
 a smooth function of the share of records that support both the restriction and the
 summarizer \citep[Eqs.~(A.3)--(A.4)]{hudec2018}, a function \citet{hudec2022} attribute to
@@ -72,9 +73,9 @@ their data is not public.
 \label{sec:rw-xai}
 Linguistic summaries have been proposed as a form of explainable artificial intelligence.
 \citet{plenary2022} explain the behaviour of black-box models in natural language through
-fuzzy linguistic summaries, and \citet{wrede2023} work towards explainable linguistic
-summaries themselves. In these approaches the summaries describe a model that is separate
-from them. In our assistant the summaries are the model: the decision word is decoded from
+fuzzy linguistic summaries, and \citet{wrede2023} work towards making linguistic summaries
+themselves explainable. In PLENARY the summaries describe a separate black-box model; in our
+assistant the summaries are the model: the decision word is decoded from
 the same fuzzy proportion that the main explanation sentence states, so the explanation
 cannot diverge from how the decision was made.
 
@@ -107,7 +108,8 @@ their own time to change trains.
 \label{sec:rw-position}
 Taken together, linguistic summaries with quality measures exist for official statistics
 and maps \citep{hudec2018,hudec2022}, linguistic summaries of traffic exist without them
-\citep{pincay2021}, linguistic summaries explain other models \citep{plenary2022,wrede2023},
+\citep{pincay2021}, linguistic summaries explain other models \citep{plenary2022} and are
+themselves made explainable \citep{wrede2023},
 and quantified statements of language models are verified crisply \citep{eida2026}. This
 paper connects these strands in one citizen-facing artefact: summaries with Hudec's quality
 measures on public transport data are the decision core of an assistant, the decision depends
