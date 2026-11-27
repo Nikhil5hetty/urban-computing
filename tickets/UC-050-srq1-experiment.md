@@ -30,6 +30,8 @@ Compute H1a, H1b, H1c exactly as defined in eval/hypotheses.yaml.
       canton, time band, weekday group)
 - [ ] Each masking case has a citizen-readable example sentence pair for the paper
 - [ ] Fixture run produces the expected values from ground_truth.json
+- [ ] H1a broken down by restriction family and by R's share of the segment (|R|/n). Because i_C ≤ |R|/n, every R below r1 = 2 % of the segment gets C = 0 regardless of truth; report how much of `share_valid_but_low_coverage` comes from such small R, and the same metric for R ≥ 2 %. The pre-registered H1a verdict stays as computed; the breakdown is reported next to it (PM review of #55)
+- [ ] H1c: report the Kendall τ also on restricted summaries with |R| ≥ 2 % of the segment, so the ranking change is not only small-R summaries dropping to Qc = 0 (PM review of #55)
 
 ## Tests
 `tests/test_srq1.py` on the fixture.

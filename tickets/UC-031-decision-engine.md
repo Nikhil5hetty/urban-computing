@@ -43,6 +43,7 @@ core: encoder (data → fuzzy words) → engine (quantified truth) → decoder (
 - [ ] Same cancellation convention as the checkers: `b_cancelled` → slack −∞ (μ_missed = 1) (PM review of #43)
 - [ ] Register invariant I4 with `@registry.invariant("I4")` in a module listed in `registry.EXPERIMENT_MODULES` (e.g. `urban_computing.evaluation.invariants`); without it the runner blocks every verdict (PM review of #44)
 - [ ] Hub rows are selected by stop identifier using the resolved `config["connections"]["hub_stop_ids"]` (UC-014 normalisation), the same mapping the crisp baseline uses, so fuzzy and crisp answers cover the same arrivals (PM review of #51)
+- [ ] Explanation summaries are mined with the hub's rows as the segment (n = the hub's arrivals / connections), not network-wide, so a line's coverage is its share at that hub. Otherwise Qc is 0 for every line below 2 % of the network (methods §3.1, PM review of #55)
 
 ## Tests
 `tests/test_engine.py`: monotonicity, margin effect, I4 checker on fixture, small-n fallback.
